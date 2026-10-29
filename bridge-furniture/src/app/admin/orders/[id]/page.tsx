@@ -3,10 +3,12 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/auth";
 import { loadOrderDetail } from "@/lib/orders";
-import { OrderDetailView } from "@/components/OrderDetailView";
+import { OrderDetailView, SubmittedBanner } from "@/components/OrderDetailView";
 import { StatusActions } from "@/components/StatusActions";
 import { PaymentForm } from "@/components/PaymentForm";
 import { DeleteDraftButton } from "@/components/DeleteDraftButton";
+import { PageHeader } from "@/components/ui/Bits";
+import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "تفاصيل الطلبية" };
 
@@ -25,19 +27,28 @@ export default async function AdminOrderPage({
   const isDraft = order.status === "draft";
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <div className="no-print mb-4 flex flex-wrap items-center justify-between gap-2">
-        <Link href="/admin/orders" className="text-muted hover:text-ink">→ الطلبيات</Link>
-        <div className="flex gap-2">
-          {order.can_edit && <Link href={`/admin/orders/${order.id}/edit`} className="btn-secondary">تعديل</Link>}
-          {!isDraft && <Link href={`/admin/orders/${order.id}/print`} className="btn-secondary">طباعة</Link>}
-        </div>
-      </div>
-      {submitted && (
-        <p className="mb-4 rounded-2xl bg-emerald-50 p-4 font-semibold text-emerald-800">
-          تم إرسال الطلبية <span className="ltr-nums">{submitted}</span> بنجاح، ووصل إشعار للمصنع.
-        </p>
-      )}
+    <div className="page">
+      {submitted && <SubmittedBanner number={submitted} newHref="/admin/orders/new" listHref="/admin/orders" />}
+      <PageHeader
+        back={{ href: "/admin/orders", label: "الطلبيات" }}
+        title={<span className="ltr-nums">{order.order_number ?? "مسودة"}</span>}
+        actions={
+          <>
+            {order.can_edit && (
+              <Link href={`/admin/orders/${order.id}/edit`} className="btn-secondary btn-sm">
+                <Icon name="edit" className="h-4 w-4" />
+                تعديل
+              </Link>
+            )}
+            {!isDraft && (
+              <Link href={`/admin/orders/${order.id}/print`} className="btn-secondary btn-sm">
+                <Icon name="print" className="h-4 w-4" />
+                طباعة
+              </Link>
+            )}
+          </>
+        }
+      />
       <OrderDetailView
         order={order}
         images={images}
@@ -56,7 +67,12 @@ export default async function AdminOrderPage({
             </>
           )
         }
-        paymentsSlot={!isDraft && order.status !== "cancelled" ? <PaymentForm orderId={order.id} /> : null}
+        canReview
+        paymentsSlot={
+          order.can_record_payment ? (
+            <PaymentForm orderId={order.id} available={order.totals.remaining - order.totals.pending} isFinance />
+          ) : null
+        }
       />
     </div>
   );

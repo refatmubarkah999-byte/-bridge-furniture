@@ -5,6 +5,7 @@ import { loadCatalog } from "@/lib/catalog";
 import { loadOrderDetail } from "@/lib/orders";
 import { todayInTz } from "@/lib/format";
 import { OrderForm } from "@/components/OrderForm";
+import { PageHeader } from "@/components/ui/Bits";
 
 export const metadata = { title: "تعديل الطلبية" };
 
@@ -17,9 +18,13 @@ export default async function SalesEditOrder({ params }: { params: Promise<{ id:
   const o = loaded.order;
   return (
     <>
-      <h1 className="mx-auto mb-4 max-w-3xl text-2xl font-bold">
-        {o.order_number ? <>تعديل الطلبية <span className="ltr-nums">{o.order_number}</span></> : "مسودة طلبية"}
-      </h1>
+      <div className="mx-auto max-w-3xl">
+        <PageHeader
+          back={{ href: o.order_number ? `/sales/orders/${id}` : "/sales?tab=drafts", label: o.order_number ? "تفاصيل الطلبية" : "المسودات" }}
+          title={o.order_number ? <>تعديل <span className="ltr-nums">{o.order_number}</span></> : "مسودة طلبية"}
+          subtitle={o.order_number ? undefined : "أكمل البيانات ثم أرسلها"}
+        />
+      </div>
       <OrderForm products={products} initial={o} basePath="/sales" minDate={todayInTz(settings.timezone)} />
     </>
   );

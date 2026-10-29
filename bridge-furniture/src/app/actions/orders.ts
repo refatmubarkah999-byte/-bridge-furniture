@@ -55,7 +55,7 @@ async function save(input: OrderPayloadInput) {
 }
 
 export async function saveDraftAction(input: OrderPayloadInput): Promise<ActionResult<{ orderId: string }>> {
-  if (!(await currentProfileWithRole("super_admin", "sales"))) return { ok: false, error: t.errors.forbidden };
+  if (!(await currentProfileWithRole("super_admin", "sales", "returns"))) return { ok: false, error: t.errors.forbidden };
   const r = await save(input);
   if ("error" in r) return { ok: false, error: r.error! };
   revalidatePath("/", "layout");
@@ -66,7 +66,7 @@ export async function saveDraftAction(input: OrderPayloadInput): Promise<ActionR
 export async function submitOrderAction(
   input: OrderPayloadInput
 ): Promise<ActionResult<{ orderId: string; orderNumber: string }>> {
-  if (!(await currentProfileWithRole("super_admin", "sales"))) return { ok: false, error: t.errors.forbidden };
+  if (!(await currentProfileWithRole("super_admin", "sales", "returns"))) return { ok: false, error: t.errors.forbidden };
   const r = await save(input);
   if ("error" in r) return { ok: false, error: r.error! };
   const { data, error } = await r.supabase.rpc("submit_order", { p_order_id: r.orderId });
@@ -104,18 +104,30 @@ export async function changeStatusAction(orderId: string, status: OrderStatus, n
   return { ok: true };
 }
 
-export async function recordPaymentAction(_prev: ActionResult, formData: FormData): Promise<ActionResult> {
+export async function recordPaymentAction(_prev: ActionResult<{ status: string }>, formData: FormData): Promise<ActionResult<{ status: string }>> {
   const parsed = z
-    .object({ orderId: z.string().uuid(), amount: z.coerce.number().positive().max(10_000_000), note: z.string().max(300) })
-    .safeParse({ orderId: formData.get("orderId"), amount: formData.get("amount"), note: formData.get("note") ?? "" });
+    .object({
+      orderId: z.string().uuid(),
+      amount: z.coerce.number().positive().max(10_000_000),
+      note: z.string().max(300),
+      method: z.enum(["cash", "transfer", "cheque", "card"]),
+    })
+    .safeParse({
+      orderId: formData.get("orderId"),
+      amount: String(formData.get("amount") ?? "").replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))).replace(/[,،\s]/g, ""),
+      note: formData.get("note") ?? "",
+      method: formData.get("method") ?? "cash",
+    });
   if (!parsed.success) return { ok: false, error: t.errors.invalid_amount };
+  if (!(await currentProfileWithRole("super_admin", "accountant", "sales"))) return { ok: false, error: t.errors.forbidden };
   const supabase = await createClient();
-  const { error } = await supabase.rpc("record_payment", {
+  const { data, error } = await supabase.rpc("record_payment", {
     p_order_id: parsed.data.orderId,
     p_amount: Math.round(parsed.data.amount * 100) / 100,
     p_note: parsed.data.note || null,
+    p_method: parsed.data.method,
   });
   if (error) return { ok: false, error: friendlyError(error) };
-  revalidatePath(`/admin/orders/${parsed.data.orderId}`);
-  return { ok: true };
+  revalidatePath("/", "layout");
+  return { ok: true, data: { status: String((data as { status?: string } | null)?.status ?? "confirmed") } };
 }

@@ -72,6 +72,9 @@ const users = {
   sales1: { id: randomUUID(), role: "sales", name: "موظف مبيعات أول" },
   sales2: { id: randomUUID(), role: "sales", name: "موظف مبيعات ثاني" },
   factory: { id: randomUUID(), role: "factory_admin", name: "مدير المصنع" },
+  accountant: { id: randomUUID(), role: "accountant", name: "المحاسب التجريبي" },
+  returns1: { id: randomUUID(), role: "returns", name: "موظف مرتجعات أول" },
+  returns2: { id: randomUUID(), role: "returns", name: "موظف مرتجعات ثاني" },
   disabled: { id: randomUUID(), role: "sales", name: "موظف موقوف", inactive: true },
 };
 for (const [username, u] of Object.entries(users)) {
@@ -191,10 +194,13 @@ await test("الضغط المزدوج على الإرسال لا يُنشئ طل
   assert(c.n === 1 && h.n === 1, `طلبيات ${c.n}، سجلات ${h.n}`);
 });
 
-await test("المجموع والمتبقي يُحسبان في القاعدة: 3×4200 + 2×3600 + 150 = 19950، والمتبقي 17950", async () => {
+await test("المجموع يُحسب في القاعدة (19950)، وعربون موظف المبيعات (2000) بانتظار التأكيد ولا يُنقص المتبقي", async () => {
   await as(users.sales1);
-  const t = await one(`select total::text, remaining::text from public.order_totals where order_id = $1`, [order1]);
-  assert(t.total === "19950.00" && t.remaining === "17950.00", JSON.stringify(t));
+  const t = await one(`select total::text, remaining::text, pending::text from public.order_totals where order_id = $1`, [order1]);
+  assert(t.total === "19950.00" && t.remaining === "19950.00" && t.pending === "2000.00", JSON.stringify(t));
+  await as(users.owner);
+  const n = await rows(`select title from public.notifications where type = 'payment_pending' and order_id = $1`, [order1]);
+  assert(n.length === 1, "إشعار للمالك بعربون بانتظار التأكيد");
 });
 
 await test("الطلبية تحفظ نسخة من اسم المنتج وصورته؛ تغيير الكتالوج لاحقاً لا يغيّرها", async () => {
@@ -472,6 +478,18 @@ await test("زائر غير مسجّل (anon) لا يقرأ أي جدول ولا
 
 console.log("\nالمالك");
 
+await test("المالك يؤكد العربون فيصبح المتبقي 17950، ويصل الموظف إشعار", async () => {
+  await as(users.owner);
+  const pay = await one(`select payment_id from public.finance_payments('pending')`);
+  assert(pay, "دفعة بانتظار التأكيد");
+  const st = (await one(`select public.review_payment($1, true) as s`, [pay.payment_id])).s;
+  assert(st === "confirmed", st);
+  const t = await one(`select remaining::text, pending::text from public.order_totals where order_id = $1`, [order1]);
+  assert(t.remaining === "17950.00" && t.pending === "0.00", JSON.stringify(t));
+  await as(users.sales1);
+  assert((await rows(`select 1 from public.notifications where type = 'payment_confirmed'`)).length === 1, "إشعار التأكيد");
+});
+
 await test("المالك يرى كل التفاصيل ولوحة الأرقام", async () => {
   await as(users.owner);
   const d = (await one(`select public.get_order_detail($1) as d`, [order1])).d;
@@ -495,6 +513,108 @@ await test("المالك لا يستطيع تعطيل حسابه بالخطأ", 
   await expectError(() => db.query(`select public.admin_update_employee($1, 'x', null, 'super_admin', false)`, [users.owner.id]), /cannot_change_self/);
 });
 
+console.log("\nالإدارة المالية");
+
+await test("إدارة المصنع لا تصل إلى التكاليف ولا الأرباح ولا الدفعات بأي طريق", async () => {
+  await as(users.factory);
+  for (const t of ["product_costs", "order_item_costs"]) {
+    assert((await one(`select count(*)::int as n from public.${t}`)).n === 0, t);
+  }
+  await expectError(() => db.exec(`select * from public.order_costs`), /permission denied/);
+  await expectError(() => db.exec(`select public.finance_summary()`), /forbidden/);
+  await expectError(() => db.exec(`select * from public.finance_payments()`), /forbidden/);
+  await expectError(() => db.exec(`select * from public.finance_orders()`), /forbidden/);
+  await expectError(() => db.exec(`select * from public.finance_product_costs()`), /forbidden/);
+  await expectError(() => db.query(`select public.set_product_cost($1, 1)`, [SILA]), /forbidden/);
+  await expectError(() => db.query(`select public.record_payment($1, 10)`, [order1]), /forbidden/);
+  assert((await rows(`select 1 from public.notifications where type like 'payment_%'`)).length === 0, "إشعارات الدفعات");
+});
+
+await test("موظف المبيعات لا يرى التكلفة ولا الربح، ولا يؤكد الدفعات", async () => {
+  await as(users.owner);
+  await db.query(`select public.set_product_cost($1, 2500)`, [SILA]);
+  await as(users.sales1);
+  assert((await one(`select count(*)::int as n from public.product_costs`)).n === 0, "تكاليف الموديلات");
+  assert((await one(`select count(*)::int as n from public.order_item_costs`)).n === 0, "تكاليف الطلبية");
+  await expectError(() => db.exec(`select * from public.order_costs`), /permission denied/);
+  const d = (await one(`select public.get_order_detail($1) as d`, [order1])).d;
+  assert(d.finance === null && !JSON.stringify(d).includes("2500"), "تفاصيل الطلبية فيها بيانات مالية");
+  await expectError(() => db.exec(`select public.finance_summary()`), /forbidden/);
+  await expectError(() => db.query(`select public.set_product_cost($1, 1)`, [SILA]), /forbidden/);
+  const anyPay = await one(`select id from public.order_payments limit 1`);
+  await expectError(() => db.query(`select public.review_payment($1, true)`, [anyPay.id]), /forbidden/);
+});
+
+await test("موظف مبيعات لا يسجّل دفعة على طلبية غيره", async () => {
+  await as(users.sales2);
+  await expectError(() => db.query(`select public.record_payment($1, 100)`, [order1]), /not_found/);
+});
+
+await test("دفعة من موظف المبيعات تبقى بانتظار التأكيد، والمالية يصلها إشعار", async () => {
+  await as(users.sales1);
+  const r = (await one(`select public.record_payment($1, 1000, 'نقداً', 'cash') as r`, [order1])).r;
+  assert(r.status === "pending", JSON.stringify(r));
+  const t = await one(`select remaining::text, pending::text from public.order_totals where order_id = $1`, [order1]);
+  assert(t.remaining === "12950.00" && t.pending === "1000.00", JSON.stringify(t));
+  await expectError(() => db.query(`select public.record_payment($1, 999999)`, [order1]), /amount_exceeds_remaining/);
+  await as(users.accountant);
+  assert((await rows(`select 1 from public.notifications where type = 'payment_pending'`)).length >= 1, "إشعار المحاسب");
+});
+
+await test("المحاسب: يرى الطلبيات المرسلة فقط، ولا يغيّر الحالة ولا الموظفين ولا الطلبيات", async () => {
+  await as(users.sales1);
+  const draft = (await one(`select public.save_order_draft($1::jsonb) as id`, [JSON.stringify(draftPayload(randomUUID()))])).id;
+  await as(users.accountant);
+  const visible = (await rows(`select id from public.orders`)).map((r) => r.id);
+  assert(visible.includes(order1) && !visible.includes(draft), JSON.stringify(visible));
+  assert((await rows(`select * from public.search_orders()`)).length === 1, "البحث");
+  assert((await one(`select count(*)::int as n from public.audit_logs`)).n === 0, "سجل التدقيق");
+  await expectError(() => db.query(`select public.change_order_status($1, 'preparing')`, [order1]), /forbidden/);
+  await expectError(() => db.query(`select public.admin_update_employee($1, 'x', null, 'super_admin', true)`, [users.accountant.id]), /forbidden/);
+  await expectError(() => db.query(`select public.save_order_draft($1::jsonb)`, [JSON.stringify(draftPayload(randomUUID()))]), /forbidden/);
+  await expectError(() => db.query(`select * from public.factory_list_orders()`), /forbidden/);
+  await as(users.sales1);
+  await db.query(`select public.delete_draft($1)`, [draft]);
+});
+
+await test("المحاسب يؤكد دفعة ويرفض أخرى؛ المرفوضة لا تُحسب ولا تُؤكَّد مرتين", async () => {
+  await as(users.accountant);
+  const p1 = (await one(`select payment_id from public.finance_payments('pending')`)).payment_id;
+  await db.query(`select public.review_payment($1, true)`, [p1]);
+  await expectError(() => db.query(`select public.review_payment($1, false)`, [p1]), /already_reviewed/);
+  await as(users.sales1);
+  await db.query(`select public.record_payment($1, 500, null, 'transfer')`, [order1]);
+  await as(users.accountant);
+  const p2 = (await one(`select payment_id from public.finance_payments('pending')`)).payment_id;
+  await db.query(`select public.review_payment($1, false, 'لم يصل التحويل')`, [p2]);
+  const t = await one(`select remaining::text, pending::text from public.order_totals where order_id = $1`, [order1]);
+  assert(t.remaining === "11950.00" && t.pending === "0.00", JSON.stringify(t));
+  await as(users.sales1);
+  const n = await rows(`select type, body from public.notifications where type in ('payment_confirmed', 'payment_rejected')`);
+  assert(n.filter((x) => x.type === "payment_rejected").length === 1 && n.some((x) => x.body.includes("لم يصل التحويل")), JSON.stringify(n));
+});
+
+await test("التكلفة تُحفظ مع الطلبية: تغيير تكلفة الموديل لاحقاً لا يغيّر ربح الطلبيات المحفوظة", async () => {
+  await as(users.sales1);
+  const o2 = (await one(`select public.save_order_draft($1::jsonb) as id`, [JSON.stringify(draftPayload(randomUUID(), { deposit: 0 }))])).id;
+  await db.query(`select public.submit_order($1)`, [o2]);
+  await as(users.accountant);
+  await db.query(`select public.set_product_cost($1, 3000)`, [SILA]);
+  const d2 = (await one(`select public.get_order_detail($1) as d`, [o2])).d;
+  assert(Number(d2.finance.cost) === 7500 && d2.finance.items_missing_cost === 1, JSON.stringify(d2.finance));
+  // الطلبية الأولى سُجّلت قبل إدخال أي تكلفة، فتُحسب بالتكلفة الحالية
+  const d1 = (await one(`select public.get_order_detail($1) as d`, [order1])).d;
+  assert(Number(d1.finance.cost) === 9000, JSON.stringify(d1.finance));
+  const s = (await one(`select public.finance_summary() as s`)).s;
+  assert(s.orders === 2 && Number(s.sales) === 39900 && Number(s.cost) === 16500 && Number(s.profit) === 23400, JSON.stringify(s));
+  assert(Number(s.collected) === 8000 && Number(s.collected_by_method.cash) === 8000, `المحصّل ${s.collected}`);
+  const sila = s.by_model.find((m) => m.model === "Sila");
+  assert(sila && sila.qty === 6 && Number(sila.cost) === 16500, JSON.stringify(s.by_model));
+  await as(users.factory);
+  const f = await rows(`select * from public.factory_get_order($1)`, [o2]);
+  assert(!JSON.stringify(f).includes("7500") && !JSON.stringify(f).includes("3000"), "بوابة المصنع");
+});
+
 await test("المالك يلغي الطلبية، ويصل المصنع إشعار إلغاء بلا بيانات سرية", async () => {
   await as(users.owner);
   await db.query(`select public.change_order_status($1, 'cancelled', 'طلب الزبون')`, [order1]);
@@ -502,6 +622,130 @@ await test("المالك يلغي الطلبية، ويصل المصنع إشع�
   const n = await rows(`select title, body from public.notifications where type = 'order_cancelled'`);
   assert(n.length === 1, "إشعار الإلغاء");
   assertNoSecrets(n, "إشعار الإلغاء");
+});
+
+console.log("\nالمرتجعات وموظف المرتجعات");
+
+const RETURN_CUSTOMER = { full_name: "زبون مرتجع", phone: "0597000111", phone2: "", city: "نابلس", address: "شارع المرتجعات 5" };
+const returnPayload = (key, extra = {}) => ({
+  idempotency_key: key,
+  expected_delivery_date: inDays(5),
+  customer: RETURN_CUSTOMER,
+  customer_notes: "سبب الإرجاع: عيب في القماش",
+  internal_notes: "",
+  delivery_fee: 0,
+  deposit: 500,
+  items: [{ product_id: SILA, color: "بيج", quantity: 2, unit_price: 3900 }],
+  ...extra,
+});
+let return1;
+let return1Number;
+const dashBefore = await (async () => {
+  await as(users.owner);
+  const s = (await one(`select public.admin_dashboard_stats() as s`)).s;
+  await asPostgres();
+  return s;
+})();
+
+await test("موظف المرتجعات يقرأ الكتالوج، ويحفظ مرتجعاً ويرسله بكل التفاصيل والأسعار", async () => {
+  await as(users.returns1);
+  assert((await one(`select count(*)::int as n from public.products`)).n > 0, "الكتالوج");
+  return1 = (await one(`select public.save_order_draft($1::jsonb) as id`, [JSON.stringify(returnPayload(randomUUID()))])).id;
+  const r = (await one(`select public.submit_order($1) as r`, [return1])).r;
+  return1Number = r.order_number;
+  const d = (await one(`select public.get_order_detail($1) as d`, [return1])).d;
+  assert(d.kind === "return" && Number(d.totals.total) === 7800 && d.items[0].quantity === 2, JSON.stringify(d.totals));
+  assert(Number(d.deposit) === 0 && d.payments.length === 0, "لا عربون على المرتجع");
+  assert(d.can_edit === false && d.can_record_payment === false && d.finance === null, "صلاحيات بعد الإرسال");
+  const mine = await rows(`select order_id, kind from public.search_orders()`);
+  assert(mine.length === 1 && mine[0].kind === "return", JSON.stringify(mine));
+});
+
+await test("موظف المرتجعات لا يرى الطلبيات العادية ولا زبائنها ولا مبالغها", async () => {
+  await as(users.returns1);
+  const visible = (await rows(`select id from public.orders`)).map((r) => r.id);
+  assert(visible.length === 1 && visible[0] === return1, JSON.stringify(visible));
+  assert(!(await rows(`select full_name from public.customers`)).some((c) => c.full_name === CUSTOMER.full_name), "زبون الطلبية العادية");
+  await expectError(() => db.query(`select public.get_order_detail($1)`, [order1]), /not_found/);
+  await expectError(() => db.query(`select public.save_order_draft($1::jsonb)`, [JSON.stringify(draftPayload(randomUUID(), { order_id: order1 }))]), /not_found/);
+  await expectError(() => db.query(`select public.submit_order($1)`, [order1]), /not_found/);
+});
+
+await test("موظف المرتجعات لا يرى مرتجعات زميله", async () => {
+  await as(users.returns2);
+  assert((await one(`select count(*)::int as n from public.orders`)).n === 0, "الطلبيات");
+  assert((await rows(`select * from public.search_orders()`)).length === 0, "البحث");
+  await expectError(() => db.query(`select public.get_order_detail($1)`, [return1]), /not_found/);
+});
+
+await test("موظف المرتجعات لا يحذف ولا يعدّل بعد الإرسال ولا يغيّر الحالة ولا يصل للإدارة أو المالية", async () => {
+  await as(users.returns1);
+  const draft = (await one(`select public.save_order_draft($1::jsonb) as id`, [JSON.stringify(returnPayload(randomUUID()))])).id;
+  await expectError(() => db.query(`select public.delete_draft($1)`, [draft]), /forbidden/);
+  await expectError(() => db.query(`select public.delete_draft($1)`, [return1]), /forbidden/);
+  await expectError(
+    () => db.query(`select public.save_order_draft($1::jsonb)`, [JSON.stringify(returnPayload(randomUUID(), { order_id: return1, items: [{ product_id: SILA, color: "بيج", quantity: 2, unit_price: 1 }] }))]),
+    /order_locked/
+  );
+  const price = await one(`select ip.unit_price::text as p from public.order_items i join public.order_item_prices ip on ip.order_item_id = i.id where i.order_id = $1`, [return1]);
+  assert(price.p === "3900.00", "السعر تغيّر");
+  await expectError(() => db.exec(`update public.order_item_prices set unit_price = 1`), /permission denied/);
+  await expectError(() => db.exec(`delete from public.orders`), /permission denied/);
+  await expectError(() => db.query(`select public.change_order_status($1, 'received')`, [return1]), /forbidden/);
+  await expectError(() => db.query(`select public.record_payment($1, 10)`, [return1]), /forbidden/);
+  await expectError(() => db.exec(`select public.admin_dashboard_stats()`), /forbidden/);
+  await expectError(() => db.exec(`select public.finance_summary()`), /forbidden/);
+  await expectError(() => db.exec(`select public.update_settings('x', 'Asia/Hebron', 'BR')`), /forbidden/);
+  await expectError(() => db.query(`select public.admin_update_employee($1, 'x', null, 'super_admin', true)`, [users.returns1.id]), /forbidden/);
+  await expectError(() => db.exec(`select * from public.factory_list_orders()`), /forbidden/);
+  assert((await one(`select count(*)::int as n from public.audit_logs`)).n === 0, "سجل التدقيق");
+  assert((await one(`select count(*)::int as n from public.profiles`)).n === 1, "ملفات الموظفين");
+  await asPostgres();
+  await db.query(`delete from public.orders where id = $1`, [draft]);
+});
+
+await test("المالك يرى كل المرتجعات بأسعارها، ولا تدخل في أرقام المبيعات", async () => {
+  await as(users.owner);
+  const list = await rows(`select order_id, total::text from public.search_orders(p_kind => 'return')`);
+  assert(list.length === 1 && list[0].order_id === return1 && list[0].total === "7800.00", JSON.stringify(list));
+  const d = (await one(`select public.get_order_detail($1) as d`, [return1])).d;
+  assert(d.kind === "return" && Number(d.items[0].unit_price) === 3900 && d.customer.full_name === RETURN_CUSTOMER.full_name, "التفاصيل");
+  const s = (await one(`select public.admin_dashboard_stats() as s`)).s;
+  assert(Number(s.total_sales) === Number(dashBefore.total_sales) && s.total_orders === dashBefore.total_orders, "المبيعات تغيّرت");
+  assert(s.returns.count === 1 && Number(s.returns.total) === 7800, JSON.stringify(s.returns));
+  const n = await rows(`select title from public.notifications where order_id = $1`, [return1]);
+  assert(n.some((x) => x.title.startsWith("مرتجع جديد")), "إشعار المالك");
+  await db.query(`select public.change_order_status($1, 'received')`, [return1]);
+  await as(users.returns1);
+  assert((await rows(`select 1 from public.notifications where order_id = $1`, [return1])).length === 1, "إشعار الموظف بالحالة");
+});
+
+await test("المصنع والمبيعات لا يرون المرتجعات بأي طريق (بوابة، قناة فورية، إشعارات)", async () => {
+  await as(users.factory);
+  assert(!(await rows(`select order_id from public.factory_list_orders()`)).some((r) => r.order_id === return1), "قائمة المصنع");
+  assert((await rows(`select * from public.factory_get_order($1)`, [return1])).length === 0, "تفاصيل المصنع");
+  await expectError(() => db.query(`select public.change_order_status($1, 'preparing')`, [return1]), /not_found/);
+  assert((await rows(`select 1 from public.notifications where order_id = $1`, [return1])).length === 0, "إشعارات المصنع");
+  await asPostgres();
+  const rt = await rows(`select payload from realtime.messages where payload->>'order_id' = $1`, [return1]);
+  assert(rt.length === 0, "القناة الفورية");
+  await as(users.owner);
+  await db.query(`select public.admin_update_employee($1, $2, null, 'sales', true, array['view_all_orders'])`, [users.sales2.id, users.sales2.name]);
+  await as(users.sales2);
+  assert(!(await rows(`select id from public.orders`)).some((r) => r.id === return1), "المبيعات مع رؤية الكل");
+  await expectError(() => db.query(`select public.get_order_detail($1)`, [return1]), /not_found/);
+  await as(users.owner);
+  await db.query(`select public.admin_update_employee($1, $2, null, 'sales', true, '{}')`, [users.sales2.id, users.sales2.name]);
+});
+
+await test("طلبيات المبيعات الجديدة تبقى عادية وتصل المصنع كما كانت", async () => {
+  await as(users.sales1);
+  const id = (await one(`select public.save_order_draft($1::jsonb) as id`, [JSON.stringify(draftPayload(randomUUID(), { deposit: 0 }))])).id;
+  await db.query(`select public.submit_order($1)`, [id]);
+  await as(users.factory);
+  assert((await rows(`select * from public.factory_get_order($1)`, [id])).length === 1, "المصنع يرى الطلبية العادية");
+  await asPostgres();
+  assert((await one(`select kind::text from public.orders where id = $1`, [id])).kind === "regular", "النوع");
 });
 
 console.log(`\n${passed} نجح، ${failures.length} فشل`);

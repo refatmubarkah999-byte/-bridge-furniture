@@ -1,4 +1,10 @@
-export type AppRole = "super_admin" | "factory_admin" | "sales";
+export type AppRole = "super_admin" | "factory_admin" | "sales" | "accountant" | "returns";
+export type OrderKind = "regular" | "return";
+export type PaymentStatus = "pending" | "confirmed" | "rejected";
+export type PaymentMethod = "cash" | "transfer" | "cheque" | "card";
+
+/** المالك والمحاسب: يريان التكلفة والربح ويؤكدان الدفعات */
+export const isFinanceRole = (r: AppRole) => r === "super_admin" || r === "accountant";
 
 export type OrderStatus =
   | "draft"
@@ -62,11 +68,13 @@ export type OrderRow = {
   models: string | null;
   total: number | null;
   remaining: number | null;
+  kind?: OrderKind;
 };
 
 export type OrderDetail = {
   id: string;
   order_number: string | null;
+  kind?: OrderKind;
   status: OrderStatus;
   expected_delivery_date: string | null;
   is_delayed: boolean;
@@ -90,11 +98,25 @@ export type OrderDetail = {
     notes: string | null;
     line_total: number;
   }[];
-  totals: { subtotal: number; delivery_fee: number; total: number; paid: number; remaining: number };
+  totals: { subtotal: number; delivery_fee: number; total: number; paid: number; remaining: number; pending: number };
   deposit: number;
-  payments: { id: string; amount: number; kind: "deposit" | "payment"; note: string | null; paid_at: string; recorded_by: string }[];
+  payments: {
+    id: string;
+    amount: number;
+    kind: "deposit" | "payment";
+    note: string | null;
+    paid_at: string;
+    recorded_by: string;
+    status: PaymentStatus;
+    method: PaymentMethod;
+    reviewed_by: string | null;
+    review_note: string | null;
+  }[];
   history: { from: OrderStatus | null; to: OrderStatus; changed_at: string; changed_by: string; note: string | null }[];
   can_edit: boolean;
+  can_record_payment: boolean;
+  /** للمالك والمحاسب فقط — null لموظف المبيعات */
+  finance: { cost: number; profit: number; items_missing_cost: number } | null;
 };
 
 export type CatalogProduct = {

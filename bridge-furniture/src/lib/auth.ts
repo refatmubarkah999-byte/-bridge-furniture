@@ -5,7 +5,11 @@ import { createClient } from "@/lib/supabase/server";
 import type { AppRole, Profile } from "@/lib/types";
 
 export function homeFor(role: AppRole) {
-  return role === "super_admin" ? "/admin" : role === "factory_admin" ? "/factory" : "/sales";
+  if (role === "super_admin") return "/admin";
+  if (role === "factory_admin") return "/factory";
+  if (role === "accountant") return "/finance";
+  if (role === "returns") return "/returns";
+  return "/sales";
 }
 
 /** المستخدم الحالي وملفه — مرة واحدة لكل طلب */

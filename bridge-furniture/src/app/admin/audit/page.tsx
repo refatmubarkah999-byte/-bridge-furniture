@@ -2,6 +2,17 @@ import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/auth";
 import { formatDateTime } from "@/lib/format";
 import { t } from "@/i18n";
+import { Avatar, EmptyState, PageHeader } from "@/components/ui/Bits";
+
+const DETAIL_LABELS: Record<string, string> = {
+  order_number: "الطلبية", from: "من", to: "إلى", amount: "المبلغ", username: "المستخدم", role: "الدور", name: "الاسم", note: "ملاحظة", method: "الطريقة", status: "الحالة",
+};
+const STATUS_WORD = (v: string) =>
+  (t.status as Record<string, string>)[v] ??
+  (t.roles as Record<string, string>)[v] ??
+  (t.paymentStatus as Record<string, string>)[v] ??
+  (t.paymentMethod as Record<string, string>)[v] ??
+  v;
 
 export const metadata = { title: "سجل التدقيق" };
 
@@ -16,6 +27,9 @@ const ACTIONS: Record<string, string> = {
   product_created: "إضافة موديل",
   product_updated: "تعديل موديل",
   settings_updated: "تعديل الإعدادات",
+  payment_confirmed: "تأكيد دفعة",
+  payment_rejected: "رفض دفعة",
+  cost_updated: "تعديل تكلفة موديل",
 };
 
 type Row = { id: number; action: string; entity: string; entity_id: string | null; details: Record<string, unknown>; created_at: string; actor: { full_name: string } | null };
@@ -31,35 +45,39 @@ export default async function AuditPage() {
   const rows = (data ?? []) as unknown as Row[];
 
   return (
-    <div className="mx-auto max-w-5xl space-y-4">
-      <h1 className="text-2xl font-bold">{t.nav.audit}</h1>
-      <p className="text-sm text-muted">آخر 200 عملية.</p>
-      <div className="card overflow-x-auto">
-        <table className="w-full text-sm">
-          <thead className="border-b border-line bg-walnut-50 text-right text-muted">
-            <tr>
-              <th className="px-4 py-3 font-medium">الوقت</th>
-              <th className="px-4 py-3 font-medium">من</th>
-              <th className="px-4 py-3 font-medium">العملية</th>
-              <th className="px-4 py-3 font-medium">التفاصيل</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-line">
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <td className="whitespace-nowrap px-4 py-2.5">{formatDateTime(r.created_at, settings.timezone)}</td>
-                <td className="px-4 py-2.5">{r.actor?.full_name ?? "النظام"}</td>
-                <td className="px-4 py-2.5">{ACTIONS[r.action] ?? r.action}</td>
-                <td className="px-4 py-2.5 text-xs text-muted">
-                  {Object.entries(r.details ?? {})
-                    .map(([k, v]) => `${k}: ${typeof v === "object" ? JSON.stringify(v) : String(v)}`)
-                    .join(" · ")}
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+    <div className="page max-w-4xl">
+      <PageHeader title={t.nav.audit} subtitle="آخر 200 عملية في النظام" back={{ href: "/admin/settings", label: t.nav.settings }} />
+      {rows.length === 0 ? (
+        <EmptyState icon="shield" title="لا توجد عمليات بعد" text="ستظهر هنا كل عملية مهمة مع اسم من قام بها ووقتها." />
+      ) : (
+        <ol className="card divide-y divide-line overflow-hidden">
+          {rows.map((r) => {
+            const details = Object.entries(r.details ?? {}).filter(([, v]) => v !== null && v !== "" && typeof v !== "object");
+            return (
+              <li key={r.id} className="flex items-start gap-3 p-4">
+                <Avatar name={r.actor?.full_name ?? "النظام"} />
+                <div className="min-w-0 flex-1">
+                  <div className="flex flex-wrap items-baseline justify-between gap-x-3">
+                    <span className="font-semibold">
+                      {r.actor?.full_name ?? "النظام"} <span className="font-normal text-muted">·</span> {ACTIONS[r.action] ?? r.action}
+                    </span>
+                    <time className="text-[13px] text-muted">{formatDateTime(r.created_at, settings.timezone)}</time>
+                  </div>
+                  {details.length > 0 && (
+                    <div className="mt-1.5 flex flex-wrap gap-1.5">
+                      {details.map(([k, v]) => (
+                        <span key={k} className="rounded-full bg-canvas px-2.5 py-0.5 text-xs text-muted ring-1 ring-line">
+                          {DETAIL_LABELS[k] ?? k}: <span className="font-semibold text-ink">{STATUS_WORD(String(v))}</span>
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              </li>
+            );
+          })}
+        </ol>
+      )}
     </div>
   );
 }

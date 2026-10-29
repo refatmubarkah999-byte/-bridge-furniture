@@ -16,7 +16,16 @@ export async function loadOrderDetail(supabase: SupabaseClient, id: string) {
     total: Number(order.totals.total),
     paid: Number(order.totals.paid),
     remaining: Number(order.totals.remaining),
+    pending: Number(order.totals.pending ?? 0),
   };
+  order.payments = order.payments.map((p) => ({ ...p, amount: Number(p.amount) }));
+  if (order.finance) {
+    order.finance = {
+      cost: Number(order.finance.cost),
+      profit: Number(order.finance.profit),
+      items_missing_cost: Number(order.finance.items_missing_cost),
+    };
+  }
   order.deposit = Number(order.deposit);
   const images = await signImagePaths(supabase, order.items.map((i) => i.image_path));
   return { order, images };

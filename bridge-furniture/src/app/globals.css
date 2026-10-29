@@ -1,72 +1,195 @@
 @import "tailwindcss";
 
+/*
+  Bridge Furniture — نظام التصميم
+  الطابع: ورشة أثاث راقية — خشب الجوز، الكتان، ونحاس خفيف للتمييز.
+  الخط: IBM Plex Sans Arabic (له نسخة عبرية مطابقة للمستقبل).
+*/
 @theme {
   --font-sans: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Tahoma, sans-serif;
 
-  /* هوية مؤقتة: خشب الجوز ودرجات الكتان — تُستبدل بألوان Bridge Furniture الرسمية */
-  --color-walnut-50: #faf6f1;
-  --color-walnut-100: #f1e7da;
-  --color-walnut-200: #e2cdb3;
+  --color-walnut-50: #faf6f0;
+  --color-walnut-100: #f2e8db;
+  --color-walnut-200: #e4d0b6;
+  --color-walnut-300: #cfae86;
   --color-walnut-500: #9a6a3c;
-  --color-walnut-600: #7f532b;
-  --color-walnut-700: #66421f;
+  --color-walnut-600: #7a4e28;
+  --color-walnut-700: #61401f;
+  --color-walnut-800: #4a3118;
   --color-walnut-900: #2e1d0e;
 
-  --color-canvas: #f7f5f1;
-  --color-ink: #1f1b16;
-  --color-muted: #6b645b;
-  --color-line: #e5e0d8;
+  --color-brass: #b8873b;
+  --color-canvas: #f6f3ee;
+  --color-surface: #ffffff;
+  --color-ink: #1e1a16;
+  --color-muted: #6e665c;
+  --color-faint: #a39a8e;
+  --color-line: #e7e1d8;
+  --color-line-strong: #d6cdc0;
+
+  --shadow-card: 0 1px 2px rgb(46 29 14 / 0.04), 0 1px 1px rgb(46 29 14 / 0.03);
+  --shadow-raised: 0 8px 24px -8px rgb(46 29 14 / 0.18), 0 2px 6px rgb(46 29 14 / 0.06);
+  --shadow-sheet: 0 -12px 40px -12px rgb(46 29 14 / 0.25);
+
+  --animate-sheet-up: sheet-up 220ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  --animate-fade-in: fade-in 160ms ease-out;
+  --animate-toast-in: toast-in 240ms cubic-bezier(0.2, 0.8, 0.2, 1);
+
+  @keyframes sheet-up {
+    from { transform: translateY(24px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+  @keyframes toast-in {
+    from { transform: translateY(-12px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
+
+:root {
+  color-scheme: light;
 }
 
 html {
   -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
 }
 
 body {
   background: var(--color-canvas);
   color: var(--color-ink);
   font-family: var(--font-sans);
+  font-feature-settings: "tnum" 0;
 }
 
-/* أرقام الطلبيات والهواتف تبقى من اليسار لليمين داخل النص العربي */
+h1, h2, h3 {
+  text-wrap: balance;
+}
+
+/* أرقام الطلبيات والهواتف والمبالغ تبقى من اليسار لليمين داخل النص العربي */
 .ltr-nums {
   direction: ltr;
   unicode-bidi: isolate;
   font-variant-numeric: tabular-nums;
 }
+.tabular {
+  font-variant-numeric: tabular-nums;
+}
 
-input,
-select,
-textarea {
+input, select, textarea, button {
   font: inherit;
 }
 
+@layer components {
+/* حقول الإدخال */
 .field {
-  @apply w-full rounded-xl border border-line bg-white px-3 py-2.5 text-base outline-none transition focus:border-walnut-500 focus:ring-2 focus:ring-walnut-200;
+  @apply block w-full rounded-xl border border-line bg-surface px-3.5 py-3 text-base text-ink outline-none transition
+    placeholder:text-faint
+    hover:border-line-strong
+    focus:border-walnut-500 focus:ring-4 focus:ring-walnut-100
+    disabled:bg-canvas disabled:text-muted;
 }
-
+.field[aria-invalid="true"] {
+  @apply border-rose-400 ring-4 ring-rose-50;
+}
 .label {
-  @apply mb-1 block text-sm font-medium text-muted;
+  @apply mb-1.5 block text-sm font-medium text-ink/80;
+}
+.hint {
+  @apply mt-1.5 text-[13px] text-muted;
+}
+.error-text {
+  @apply mt-1.5 text-[13px] font-medium text-rose-700;
 }
 
-.btn,
-.btn-primary,
-.btn-secondary,
-.btn-danger {
-  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+/* الأزرار */
+.btn, .btn-primary, .btn-secondary, .btn-danger, .btn-ghost, .btn-success {
+  @apply inline-flex min-h-12 select-none items-center justify-center gap-2 rounded-xl px-5 text-base font-semibold transition
+    active:scale-[0.98]
+    focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-walnut-200
+    disabled:pointer-events-none disabled:opacity-50;
 }
 .btn-primary {
-  @apply bg-walnut-600 text-white hover:bg-walnut-700;
+  @apply bg-walnut-600 text-white shadow-[0_1px_0_rgb(255_255_255/0.15)_inset,0_1px_2px_rgb(46_29_14/0.2)] hover:bg-walnut-700;
+}
+.btn-success {
+  @apply bg-emerald-700 text-white hover:bg-emerald-800 focus-visible:ring-emerald-200;
 }
 .btn-secondary {
-  @apply border border-line bg-white text-ink hover:bg-walnut-50;
+  @apply border border-line bg-surface text-ink hover:border-line-strong hover:bg-walnut-50;
+}
+.btn-ghost {
+  @apply text-muted hover:bg-walnut-50 hover:text-ink;
 }
 .btn-danger {
-  @apply border border-rose-200 bg-white text-rose-700 hover:bg-rose-50;
+  @apply border border-rose-200 bg-surface text-rose-700 hover:bg-rose-50 focus-visible:ring-rose-100;
+}
+.btn-sm {
+  @apply min-h-10 rounded-lg px-3.5 text-sm;
+}
+.btn-lg {
+  @apply min-h-14 rounded-2xl px-6 text-lg;
+}
+.icon-btn {
+  @apply inline-flex h-11 w-11 items-center justify-center rounded-xl text-muted transition hover:bg-walnut-50 hover:text-ink
+    focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-walnut-200;
 }
 
+/* البطاقات */
 .card {
-  @apply rounded-2xl border border-line bg-white;
+  @apply rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)];
+}
+.card-interactive {
+  @apply rounded-2xl border border-line bg-surface shadow-[var(--shadow-card)] transition hover:border-line-strong hover:shadow-[var(--shadow-raised)] active:scale-[0.995];
+}
+
+/* الشرائح (Chips) */
+.chip {
+  @apply inline-flex min-h-10 items-center gap-2 whitespace-nowrap rounded-full border border-line bg-surface px-4 text-sm font-semibold text-ink transition hover:border-line-strong;
+}
+.chip[aria-pressed="true"], .chip[aria-current="page"] {
+  @apply border-walnut-600 bg-walnut-600 text-white;
+}
+.chip-count {
+  @apply min-w-6 rounded-full bg-black/[0.07] px-1.5 text-center text-xs leading-5 tabular-nums;
+}
+.chip[aria-pressed="true"] .chip-count, .chip[aria-current="page"] .chip-count {
+  @apply bg-white/20;
+}
+
+/* هيكل صفحة */
+.page {
+  @apply mx-auto w-full max-w-6xl;
+}
+.page-title {
+  @apply text-[26px] font-bold leading-tight tracking-tight md:text-[30px];
+}
+.section-title {
+  @apply text-lg font-bold;
+}
+
+/* إخفاء شريط التمرير الأفقي في صفوف الفلاتر */
+.scroll-row {
+  scrollbar-width: none;
+}
+.scroll-row::-webkit-scrollbar {
+  display: none;
+}
+}
+
+/* حقول التاريخ: تبقى باتجاه الصفحة حتى لا ينعكس "يوم/شهر/سنة" */
+input[type="date"] {
+  min-height: 48px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
 
 @media print {
@@ -77,6 +200,7 @@ textarea {
     background: white;
   }
   .card {
+    box-shadow: none;
     border-color: #ccc;
   }
 }

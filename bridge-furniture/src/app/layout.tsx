@@ -5,6 +5,7 @@ import "@fontsource/ibm-plex-sans-arabic/600.css";
 import "@fontsource/ibm-plex-sans-arabic/700.css";
 import "./globals.css";
 import { ServiceWorkerRegister } from "@/components/ServiceWorkerRegister";
+import { FeedbackProvider } from "@/components/ui/Feedback";
 import { t, dir } from "@/i18n";
 
 export const metadata: Metadata = {
@@ -17,7 +18,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: "#7f532b",
+  themeColor: "#7a4e28",
   width: "device-width",
   initialScale: 1,
 };
@@ -26,7 +27,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="ar" dir={dir}>
       <body className="min-h-dvh antialiased">
-        {children}
+        <FeedbackProvider>{children}</FeedbackProvider>
         <ServiceWorkerRegister />
       </body>
     </html>

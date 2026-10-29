@@ -10,7 +10,7 @@ import { writeAudit } from "@/lib/audit";
 import { t } from "@/i18n";
 import type { ActionResult } from "@/lib/types";
 
-const roleSchema = z.enum(["super_admin", "factory_admin", "sales"]);
+const roleSchema = z.enum(["super_admin", "factory_admin", "sales", "accountant", "returns"]);
 const passwordSchema = z
   .string()
   .min(10, "كلمة المرور 10 أحرف على الأقل")

@@ -52,6 +52,16 @@ export function periodRange(period: string, timeZone: string, from?: string, to?
     }
     case "month":
       return { from: `${today.slice(0, 8)}01`, to: today };
+    case "last_month": {
+      const first = new Date(`${today.slice(0, 8)}01T00:00:00Z`);
+      const end = new Date(first);
+      end.setUTCDate(0);
+      const start = new Date(end);
+      start.setUTCDate(1);
+      return { from: iso(start), to: iso(end) };
+    }
+    case "year":
+      return { from: `${today.slice(0, 4)}-01-01`, to: today };
     case "custom":
       return { from: isIsoDate(from) ? from! : today, to: isIsoDate(to) ? to! : today };
     case "all":
@@ -62,6 +72,57 @@ export function periodRange(period: string, timeZone: string, from?: string, to?
   }
 }
 
+/** عدد الأيام من اليوم (بتوقيت الشركة) حتى التاريخ المعطى. سالب = فات الموعد */
+export function daysUntil(date: string | null | undefined, timeZone: string) {
+  if (!date) return null;
+  const today = Date.parse(`${todayInTz(timeZone)}T00:00:00Z`);
+  const target = Date.parse(`${date.slice(0, 10)}T00:00:00Z`);
+  return Math.round((target - today) / 86_400_000);
+}
+
+/** عدّ الأيام بالعربية الصحيحة: يوم / يومين / 3 أيام / 11 يوماً */
+export function arabicDays(n: number) {
+  const a = Math.abs(n);
+  if (a === 1) return "يوم";
+  if (a === 2) return "يومين";
+  if (a >= 3 && a <= 10) return `${a} أيام`;
+  return `${a} يوماً`;
+}
+
+/** وصف قصير لموعد التسليم: "اليوم"، "غداً"، "بعد 3 أيام"، "متأخرة يومين" */
+export function dueLabel(days: number | null) {
+  if (days === null) return "";
+  if (days === 0) return "التسليم اليوم";
+  if (days === 1) return "التسليم غداً";
+  if (days > 1) return `بعد ${arabicDays(days)}`;
+  return `متأخرة ${arabicDays(days)}`;
+}
+
 export function isIsoDate(v: string | undefined | null) {
   return !!v && /^\d{4}-\d{2}-\d{2}$/.test(v);
+}
+
+/** صيغ العدد العربية: قطعة واحدة، قطعتان، 3 قطع، 11 قطعة */
+function arCount(n: number, one: string, two: string, few: string, many: string) {
+  if (n === 1) return one;
+  if (n === 2) return two;
+  const r = n % 100;
+  if (r >= 3 && r <= 10) return `${n} ${few}`;
+  return `${n} ${many}`;
+}
+export const piecesLabel = (n: number) => arCount(n, "قطعة واحدة", "قطعتان", "قطع", "قطعة");
+export const modelsLabel = (n: number) => arCount(n, "موديل واحد", "موديلان", "موديلات", "موديلاً");
+
+/** اسم الشهر بالعربية من "YYYY-MM" */
+export function monthLabel(ym: string, withYear = false) {
+  const d = new Date(`${ym}-01T00:00:00Z`);
+  return new Intl.DateTimeFormat("ar", { month: "long", ...(withYear ? { year: "numeric" } : {}), timeZone: "UTC", numberingSystem: "latn" }).format(d);
+}
+
+/** مبلغ مختصر للمحاور: 12.5 ألف */
+export function shortILS(n: number) {
+  const a = Math.abs(n);
+  if (a >= 1_000_000) return `${(n / 1_000_000).toFixed(1).replace(/\.0$/, "")} مليون`;
+  if (a >= 1000) return `${(n / 1000).toFixed(a >= 10000 ? 0 : 1).replace(/\.0$/, "")} ألف`;
+  return String(Math.round(n));
 }

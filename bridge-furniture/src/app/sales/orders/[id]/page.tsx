@@ -3,9 +3,11 @@ import { notFound } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getSettings } from "@/lib/auth";
 import { loadOrderDetail } from "@/lib/orders";
-import { OrderDetailView } from "@/components/OrderDetailView";
+import { OrderDetailView, SubmittedBanner } from "@/components/OrderDetailView";
 import { DeleteDraftButton } from "@/components/DeleteDraftButton";
-import { StatusBadge } from "@/components/StatusBadge";
+import { PaymentForm } from "@/components/PaymentForm";
+import { PageHeader } from "@/components/ui/Bits";
+import { Icon } from "@/components/Icon";
 
 export const metadata = { title: "تفاصيل الطلبية" };
 
@@ -24,13 +26,20 @@ export default async function SalesOrderPage({
   const isDraft = order.status === "draft";
 
   return (
-    <div className="mx-auto max-w-6xl">
-      <Link href="/sales" className="mb-4 inline-block text-muted hover:text-ink">→ طلبياتي</Link>
-      {submitted && (
-        <p className="mb-4 rounded-2xl bg-emerald-50 p-4 font-semibold text-emerald-800">
-          تم إرسال الطلبية <span className="ltr-nums">{submitted}</span> بنجاح. ستتابع حالتها هنا.
-        </p>
-      )}
+    <div className="page">
+      {submitted && <SubmittedBanner number={submitted} newHref="/sales/orders/new" listHref="/sales" />}
+      <PageHeader
+        back={{ href: isDraft ? "/sales?tab=drafts" : "/sales", label: "طلبياتي" }}
+        title={<span className="ltr-nums">{order.order_number ?? "مسودة"}</span>}
+        actions={
+          !isDraft && order.can_edit ? (
+            <Link href={`/sales/orders/${order.id}/edit`} className="btn-secondary btn-sm">
+              <Icon name="edit" className="h-4 w-4" />
+              تعديل
+            </Link>
+          ) : undefined
+        }
+      />
       <OrderDetailView
         order={order}
         images={images}
@@ -38,19 +47,16 @@ export default async function SalesOrderPage({
         actions={
           isDraft ? (
             <div className="space-y-2">
-              <p className="text-sm text-muted">هذه مسودة لم تُرسل بعد.</p>
+              <p className="text-sm text-muted">هذه مسودة لم تُرسل بعد، ولا يراها أحد غيرك.</p>
               <Link href={`/sales/orders/${order.id}/edit`} className="btn-primary w-full">متابعة وإرسال</Link>
               <DeleteDraftButton orderId={order.id} redirectTo="/sales?tab=drafts" />
             </div>
-          ) : (
-            <div className="space-y-3">
-              <div className="text-sm text-muted">الحالة الحالية</div>
-              <StatusBadge status={order.status} large />
-              {order.can_edit && (
-                <Link href={`/sales/orders/${order.id}/edit`} className="btn-secondary w-full">تعديل الطلبية</Link>
-              )}
-            </div>
-          )
+          ) : undefined
+        }
+        paymentsSlot={
+          order.can_record_payment ? (
+            <PaymentForm orderId={order.id} available={order.totals.remaining - order.totals.pending} isFinance={false} />
+          ) : null
         }
       />
     </div>

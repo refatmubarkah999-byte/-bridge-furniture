@@ -2,85 +2,102 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { logoutAction } from "@/app/actions/auth";
 import { BrandMark } from "@/components/BrandMark";
-import { NavLinks, type NavItem } from "@/components/NavLinks";
+import { SideNav, BottomNav } from "@/components/NavLinks";
 import { LiveUpdates } from "@/components/LiveUpdates";
+import { Icon } from "@/components/Icon";
+import { Avatar } from "@/components/ui/Bits";
+import type { NavConfig } from "@/lib/nav";
 import { t } from "@/i18n";
 import type { Profile } from "@/lib/types";
 
-export async function AppShell({
-  profile,
-  nav,
-  children,
-}: {
-  profile: Profile;
-  nav: NavItem[];
-  children: React.ReactNode;
-}) {
+export async function AppShell({ profile, nav, children }: { profile: Profile; nav: NavConfig; children: React.ReactNode }) {
   const supabase = await createClient();
   const [{ count }] = await Promise.all([
     supabase.from("notifications").select("id", { count: "exact", head: true }).is("read_at", null),
     supabase.rpc("touch_last_seen"),
   ]);
-  const unread = count ?? 0;
+  return (
+    <AppShellView profile={profile} nav={nav} unread={count ?? 0} logout={logoutAction}>
+      {children}
+      <LiveUpdates role={profile.role} userId={profile.id} />
+    </AppShellView>
+  );
+}
+
+/** الهيكل المرئي فقط (بدون جلب بيانات) */
+export function AppShellView({
+  profile,
+  nav,
+  unread,
+  logout,
+  children,
+}: {
+  profile: Pick<Profile, "full_name" | "role">;
+  nav: NavConfig;
+  unread: number;
+  logout?: () => Promise<void>;
+  children: React.ReactNode;
+}) {
+  const userCard = (
+    <div className="flex items-center gap-3 rounded-2xl bg-canvas p-3">
+      <Avatar name={profile.full_name} />
+      <div className="min-w-0 flex-1 leading-tight">
+        <div className="truncate font-semibold">{profile.full_name}</div>
+        <div className="text-[13px] text-muted">{t.roles[profile.role]}</div>
+      </div>
+      <form action={logout}>
+        <button className="icon-btn" aria-label={t.nav.logout} title={t.nav.logout}>
+          <Icon name="logout" className="h-[18px] w-[18px]" />
+        </button>
+      </form>
+    </div>
+  );
 
   return (
     <div className="min-h-dvh md:flex">
-      <aside className="no-print hidden w-60 shrink-0 border-l border-line bg-white md:block">
+      <aside className="no-print hidden w-[264px] shrink-0 border-l border-line bg-surface md:block">
         <div className="sticky top-0 flex h-dvh flex-col p-4">
-          <Link href="/" className="mb-6 flex items-center gap-2.5 px-2">
-            <BrandMark />
+          <Link href="/" className="mb-7 flex items-center gap-3 px-1.5 pt-1">
+            <BrandMark className="h-10 w-10" />
+            <div className="leading-tight">
+              <div className="text-[17px] font-bold">{t.appName}</div>
+              <div className="text-[13px] text-muted">{t.appTagline}</div>
+            </div>
+          </Link>
+          <SideNav nav={nav} unread={unread} />
+          <div className="mt-auto pt-4">{userCard}</div>
+        </div>
+      </aside>
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="no-print sticky top-0 z-30 flex items-center justify-between gap-3 border-b border-line bg-surface/90 px-4 pb-2.5 pt-[max(10px,env(safe-area-inset-top))] backdrop-blur md:hidden">
+          <Link href="/" className="flex items-center gap-2.5">
+            <BrandMark className="h-9 w-9" />
             <div className="leading-tight">
               <div className="font-bold">{t.appName}</div>
               <div className="text-xs text-muted">{t.roles[profile.role]}</div>
             </div>
           </Link>
-          <NavLinks items={nav} variant="side" />
-          <div className="mt-auto border-t border-line pt-4">
-            <div className="px-2 text-sm font-medium">{profile.full_name}</div>
-            <form action={logoutAction}>
-              <button className="mt-1 px-2 text-sm text-muted hover:text-ink">{t.nav.logout}</button>
-            </form>
-          </div>
-        </div>
-      </aside>
-
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="no-print sticky top-0 z-20 flex items-center justify-between gap-3 border-b border-line bg-white/90 px-4 py-3 backdrop-blur md:px-8">
-          <Link href="/" className="flex items-center gap-2 md:hidden">
-            <BrandMark className="h-8 w-8" />
-            <span className="font-bold">{t.appName}</span>
+          <Link
+            href="/notifications"
+            className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-surface"
+            aria-label={`${t.nav.notifications}${unread ? ` (${unread})` : ""}`}
+          >
+            <Icon name="bell" className="h-5 w-5" />
+            {unread > 0 && (
+              <span className="absolute -left-1 -top-1 min-w-5 rounded-full bg-rose-600 px-1.5 text-center text-[11px] font-bold leading-5 text-white ring-2 ring-surface">
+                {unread > 99 ? "99+" : unread}
+              </span>
+            )}
           </Link>
-          <div className="hidden text-sm text-muted md:block">{t.appTagline}</div>
-          <div className="flex items-center gap-2">
-            <Link
-              href="/notifications"
-              className="relative inline-flex h-11 w-11 items-center justify-center rounded-xl border border-line bg-white hover:bg-walnut-50"
-              aria-label={`${t.nav.notifications}${unread ? ` (${unread})` : ""}`}
-            >
-              <svg viewBox="0 0 24 24" className="h-5 w-5" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-                <path d="M6 9a6 6 0 1 1 12 0c0 6 2.5 7.5 2.5 7.5h-17S6 15 6 9Z" />
-                <path d="M10 20a2 2 0 0 0 4 0" />
-              </svg>
-              {unread > 0 && (
-                <span className="absolute -top-1.5 -left-1.5 min-w-5 rounded-full bg-rose-600 px-1.5 text-center text-xs font-bold leading-5 text-white">
-                  {unread > 99 ? "99+" : unread}
-                </span>
-              )}
-            </Link>
-            <form action={logoutAction} className="md:hidden">
-              <button className="btn-secondary h-11 px-3 text-sm">{t.nav.logout}</button>
-            </form>
-          </div>
         </header>
 
-        <main className="flex-1 px-4 pb-28 pt-5 md:px-8 md:pb-10">{children}</main>
+        <main className="flex-1 px-4 pb-32 pt-5 md:px-8 md:pb-12 md:pt-8">{children}</main>
 
-        <nav className="no-print fixed inset-x-0 bottom-0 z-20 border-t border-line bg-white pb-[env(safe-area-inset-bottom)] md:hidden">
-          <NavLinks items={nav} variant="bottom" />
+        <nav className="no-print fixed inset-x-0 bottom-0 z-40 md:hidden" aria-label="التنقل">
+          <BottomNav nav={nav} unread={unread} footer={userCard} />
         </nav>
       </div>
-
-      <LiveUpdates role={profile.role} userId={profile.id} />
     </div>
   );
 }
