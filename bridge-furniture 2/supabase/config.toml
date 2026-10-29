@@ -1,0 +1,33 @@
+# إعدادات Supabase CLI للتطوير المحلي.
+# في المشروع السحابي تُضبط نفس الإعدادات من لوحة Supabase (انظر README).
+project_id = "bridge-furniture"
+
+[api]
+schemas = ["public"]
+
+[db]
+major_version = 17
+
+[db.seed]
+enabled = true
+sql_paths = ["./seed.sql"]
+
+[realtime]
+enabled = true
+
+[storage]
+enabled = true
+file_size_limit = "5MiB"
+
+[auth]
+enabled = true
+site_url = "http://localhost:3000"
+# لا تسجيل ذاتي: الحسابات يُنشئها المالك فقط
+enable_signup = false
+jwt_expiry = 3600
+enable_refresh_token_rotation = true
+minimum_password_length = 8
+
+[auth.email]
+enable_signup = false
+enable_confirmations = false

@@ -1,0 +1,82 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "IBM Plex Sans Arabic", system-ui, "Segoe UI", Tahoma, sans-serif;
+
+  /* هوية مؤقتة: خشب الجوز ودرجات الكتان — تُستبدل بألوان Bridge Furniture الرسمية */
+  --color-walnut-50: #faf6f1;
+  --color-walnut-100: #f1e7da;
+  --color-walnut-200: #e2cdb3;
+  --color-walnut-500: #9a6a3c;
+  --color-walnut-600: #7f532b;
+  --color-walnut-700: #66421f;
+  --color-walnut-900: #2e1d0e;
+
+  --color-canvas: #f7f5f1;
+  --color-ink: #1f1b16;
+  --color-muted: #6b645b;
+  --color-line: #e5e0d8;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--color-canvas);
+  color: var(--color-ink);
+  font-family: var(--font-sans);
+}
+
+/* أرقام الطلبيات والهواتف تبقى من اليسار لليمين داخل النص العربي */
+.ltr-nums {
+  direction: ltr;
+  unicode-bidi: isolate;
+  font-variant-numeric: tabular-nums;
+}
+
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+.field {
+  @apply w-full rounded-xl border border-line bg-white px-3 py-2.5 text-base outline-none transition focus:border-walnut-500 focus:ring-2 focus:ring-walnut-200;
+}
+
+.label {
+  @apply mb-1 block text-sm font-medium text-muted;
+}
+
+.btn,
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl px-4 py-2.5 text-base font-semibold transition disabled:cursor-not-allowed disabled:opacity-50;
+}
+.btn-primary {
+  @apply bg-walnut-600 text-white hover:bg-walnut-700;
+}
+.btn-secondary {
+  @apply border border-line bg-white text-ink hover:bg-walnut-50;
+}
+.btn-danger {
+  @apply border border-rose-200 bg-white text-rose-700 hover:bg-rose-50;
+}
+
+.card {
+  @apply rounded-2xl border border-line bg-white;
+}
+
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: white;
+  }
+  .card {
+    border-color: #ccc;
+  }
+}
