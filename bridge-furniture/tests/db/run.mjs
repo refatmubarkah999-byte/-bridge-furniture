@@ -283,7 +283,7 @@ console.log("\nبوابة المصنع تُرجع الحقول السبعة فق
 
 const SECRET_STRINGS = [
   CUSTOMER.full_name, CUSTOMER.phone, CUSTOMER.phone2, CUSTOMER.city, CUSTOMER.address,
-  "ملاحظة-زبون-سرية", "ملاحظة-داخلية-سرية", "ملاحظة-منتج-سرية",
+  "ملاحظة-منتج-سرية",
   users.sales1.name, "4200", "3600", "19950", "17950", "2000", "150", "₪",
 ];
 function assertNoSecrets(obj, where) {
@@ -296,7 +296,9 @@ await test("factory_list_orders: الأعمدة والحقول المسموحة 
   const list = await rows(`select * from public.factory_list_orders()`);
   assert(list.length === 1, `عدد الطلبيات ${list.length}`);
   const cols = Object.keys(list[0]).sort().join(",");
-  assert(cols === "expected_delivery_date,is_delayed,items,order_id,order_number,status", `أعمدة: ${cols}`);
+  assert(cols === "customer_notes,expected_delivery_date,internal_notes,is_delayed,items,order_id,order_number,status", `أعمدة: ${cols}`);
+  // بطلب المالك: ملاحظات الطلبية تصل المصنع (ملاحظات المنتج والأسعار وبيانات الزبون لا)
+  assert(list[0].customer_notes === "ملاحظة-زبون-سرية" && list[0].internal_notes === "ملاحظة-داخلية-سرية", "الملاحظات");
   for (const item of list[0].items) {
     const keys = Object.keys(item).sort().join(",");
     assert(keys === "catalog,color,color_code,image_path,model,position,quantity", `حقول المنتج: ${keys}`);
@@ -327,6 +329,7 @@ await test("إشعارات المصنع لا تحتوي اسم زبون أو ه�
   const n = await rows(`select title, body from public.notifications`);
   assert(n.length >= 1, "يجب أن يصل إشعار الطلبية الجديدة");
   assertNoSecrets(n, "إشعارات المصنع");
+  assert(!JSON.stringify(n).includes("ملاحظة-"), "الإشعارات لا تحمل الملاحظات");
 });
 
 await test("إشعار المالك يحتوي التفاصيل الكاملة", async () => {
@@ -344,6 +347,7 @@ await test("قناة التحديث الفوري للمصنع تحمل الرق�
     assert(Object.keys(m.payload).sort().join(",") === "order_id,order_number,status", JSON.stringify(m.payload));
   }
   assertNoSecrets(msgs, "رسائل القناة");
+  assert(!JSON.stringify(msgs).includes("ملاحظة-"), "القناة الفورية لا تحمل الملاحظات");
 });
 
 await test("موظف المبيعات لا يستطيع الاستماع لقناة المصنع", async () => {

@@ -8,6 +8,7 @@ import { formatDate } from "@/lib/format";
 import type { FactoryOrder } from "@/lib/types";
 import { ColorSpec } from "@/components/ColorSpec";
 import { colorText } from "@/lib/color";
+import { FactoryNotes } from "@/components/FactoryNotes";
 
 export function FactoryOrderDetail({
   order,
@@ -63,6 +64,11 @@ export function FactoryOrderDetail({
             </li>
           ))}
         </ul>
+        {(order.customer_notes || order.internal_notes) && (
+          <div className="mt-4">
+            <FactoryNotes customerNotes={order.customer_notes} internalNotes={order.internal_notes} />
+          </div>
+        )}
       </section>
 
       <div className="no-print sticky bottom-[calc(76px+env(safe-area-inset-bottom))] z-20 rounded-2xl bg-canvas/90 py-2 backdrop-blur md:bottom-4">

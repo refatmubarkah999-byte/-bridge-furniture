@@ -62,6 +62,12 @@ export default async function FactoryPrintPage({ params }: { params: Promise<{ i
           ))}
         </tbody>
       </table>
+      {(order.customer_notes || order.internal_notes) && (
+        <div className="mt-5 space-y-1 border-t border-ink pt-3 text-base">
+          {order.customer_notes && <p><b>ملاحظات الزبون:</b> {order.customer_notes}</p>}
+          {order.internal_notes && <p><b>ملاحظات داخلية:</b> {order.internal_notes}</p>}
+        </div>
+      )}
     </div>
   );
 }

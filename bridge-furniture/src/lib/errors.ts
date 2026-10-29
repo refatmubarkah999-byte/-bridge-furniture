@@ -13,6 +13,8 @@ export function friendlyError(err: unknown): string {
   const code = message.trim().split(/\s/)[0] as ErrorKey;
   if (code && code in t.errors) return t.errors[code];
   if (/permission denied|row-level security|42501/.test(message)) return t.errors.forbidden;
+  // الموقع أحدث من قاعدة البيانات: ملف SQL جديد لم يُشغَّل بعد
+  if (/PGRST202|Could not find the function|does not exist|schema cache/i.test(message)) return t.errors.db_outdated;
   if (process.env.NODE_ENV !== "production") console.error("[db error]", message);
   return t.errors.generic;
 }

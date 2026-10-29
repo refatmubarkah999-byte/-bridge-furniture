@@ -52,6 +52,9 @@ export type FactoryOrder = {
   expected_delivery_date: string;
   is_delayed: boolean;
   items: FactoryItem[];
+  /** بطلب المالك: ملاحظات الطلبية تظهر للمصنع */
+  customer_notes?: string | null;
+  internal_notes?: string | null;
 };
 
 export type OrderRow = {

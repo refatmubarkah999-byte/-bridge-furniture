@@ -553,16 +553,16 @@ export function OrderForm({
       {/* 4. الملاحظات */}
       <Section n={4} title="ملاحظات" icon="note" optional>
         <div className="grid gap-4 sm:grid-cols-2">
-          <Field label="ملاحظات الزبون">
+          <Field label="ملاحظات الزبون" hint="تظهر للمصنع، ويمكن طباعتها على البوليصة">
             <textarea className="field min-h-20" value={customerNotes} maxLength={1000} placeholder="مثال: يفضّل التوصيل بعد العصر" onChange={(e) => setCustomerNotes(e.target.value)} />
           </Field>
-          <Field label="ملاحظات داخلية">
-            <textarea className="field min-h-20" value={internalNotes} maxLength={1000} placeholder="للإدارة فقط" onChange={(e) => setInternalNotes(e.target.value)} />
+          <Field label="ملاحظات داخلية" hint="تظهر للإدارة والمصنع فقط — لا تُطبع على البوليصة">
+            <textarea className="field min-h-20" value={internalNotes} maxLength={1000} placeholder="مثال: الزبون طلب خياطة مزدوجة" onChange={(e) => setInternalNotes(e.target.value)} />
           </Field>
         </div>
         <p className="mt-3 flex items-center gap-2 rounded-xl bg-canvas p-3 text-[13px] text-muted">
           <Icon name="shield" className="h-4 w-4 shrink-0 text-walnut-600" />
-          بيانات الزبون والأسعار والملاحظات لا تصل إلى المصنع.
+          الملاحظتان تظهران لإدارة المصنع. اسم الزبون وهاتفه وعنوانه والأسعار لا تصل إلى المصنع.
         </p>
       </Section>
 

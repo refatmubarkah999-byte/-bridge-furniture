@@ -7,6 +7,7 @@ import { formatDate, modelsLabel, piecesLabel } from "@/lib/format";
 import type { FactoryOrder } from "@/lib/types";
 import { ColorSpec } from "@/components/ColorSpec";
 import { colorText } from "@/lib/color";
+import { FactoryNotes } from "@/components/FactoryNotes";
 
 /** بطاقة طلبية المصنع: الحقول السبعة المسموحة فقط */
 export function FactoryOrderCard({
@@ -66,6 +67,12 @@ export function FactoryOrderCard({
           </li>
         ))}
       </ul>
+
+      {(order.customer_notes || order.internal_notes) && (
+        <div className="px-4 pb-3">
+          <FactoryNotes customerNotes={order.customer_notes} internalNotes={order.internal_notes} compact />
+        </div>
+      )}
 
       <footer className="mt-auto space-y-2 border-t border-line p-4">
         {order.items.length > 1 && (
