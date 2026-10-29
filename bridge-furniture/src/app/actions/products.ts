@@ -17,7 +17,7 @@ const ProductSchema = z.object({
   colors: z
     .string()
     .transform((s) => Array.from(new Set(s.split(/[,،\n]/).map((c) => c.trim()).filter(Boolean))))
-    .pipe(z.array(z.string().max(40)).min(1, "أضف لوناً واحداً على الأقل").max(30)),
+    .pipe(z.array(z.string().max(40)).max(30)),
 });
 
 /** يتحقق من أن الملف صورة فعلاً (من أول بايتات الملف، لا من اسمه فقط) */

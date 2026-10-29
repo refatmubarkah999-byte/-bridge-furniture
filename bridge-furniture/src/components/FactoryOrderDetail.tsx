@@ -6,6 +6,8 @@ import { PageHeader } from "@/components/ui/Bits";
 import { Icon } from "@/components/Icon";
 import { formatDate } from "@/lib/format";
 import type { FactoryOrder } from "@/lib/types";
+import { ColorSpec } from "@/components/ColorSpec";
+import { colorText } from "@/lib/color";
 
 export function FactoryOrderDetail({
   order,
@@ -49,13 +51,10 @@ export function FactoryOrderDetail({
         <ul className="space-y-3">
           {order.items.map((item) => (
             <li key={item.position} className="flex items-center gap-4 rounded-2xl border border-line p-3">
-              <ZoomImage url={item.image_path ? images[item.image_path] : null} alt={item.model} caption={`${item.model} — ${item.color}`} size="lg" />
+              <ZoomImage url={item.image_path ? images[item.image_path] : null} alt={item.model} caption={`${item.model} — ${colorText(item)}`} size="lg" />
               <div className="min-w-0 flex-1">
                 <div className="text-xl font-bold">{item.model}</div>
-                <div className="mt-1 inline-flex items-center gap-1.5 text-lg text-ink/75">
-                  <span className="h-3.5 w-3.5 rounded-full bg-walnut-300 ring-1 ring-black/10" aria-hidden="true" />
-                  {item.color}
-                </div>
+                <div className="mt-1.5"><ColorSpec item={item} size="lg" /></div>
               </div>
               <div className="flex flex-col items-center rounded-2xl bg-canvas px-4 py-2">
                 <span className="text-3xl font-bold leading-none tabular">{item.quantity}</span>

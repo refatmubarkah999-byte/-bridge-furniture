@@ -83,7 +83,7 @@ export function ProductForm({ product }: { product?: CatalogProduct }) {
           <input name="standard_price" inputMode="decimal" dir="ltr" defaultValue={product?.standard_price ?? ""} placeholder="0" className="field text-left ltr-nums" />
         </label>
         <div className="sm:col-span-2">
-          <span className="label">الألوان المتاحة <span className="text-rose-600">*</span></span>
+          <span className="label">ألوان خاصة بالموديل <span className="font-normal text-muted">— اختياري</span></span>
           <div className="flex gap-2">
             <input
               value={colorInput}
@@ -111,7 +111,7 @@ export function ProductForm({ product }: { product?: CatalogProduct }) {
               ))}
             </div>
           ) : (
-            <p className="hint">أضف لوناً واحداً على الأقل، مثل: بيج، رمادي.</p>
+            <p className="hint">الألوان تُختار عادة من «الكتالوجات» برقم اللون. استعمل هذه فقط إذا لم توجد كتالوجات بعد.</p>
           )}
         </div>
         {product && (
@@ -121,7 +121,7 @@ export function ProductForm({ product }: { product?: CatalogProduct }) {
           </label>
         )}
         <div className="sm:col-span-2">
-          <button disabled={pending || colors.length === 0} className="btn-primary w-full sm:w-auto">
+          <button disabled={pending} className="btn-primary w-full sm:w-auto">
             {pending ? "جارٍ الحفظ…" : product ? "حفظ التعديلات" : "إضافة الموديل"}
           </button>
         </div>

@@ -26,7 +26,7 @@ export default async function CostsPage() {
         موظفو المبيعات والمصنع لا يرون التكاليف أبداً.
       </p>
       {rows.length === 0 ? (
-        <EmptyState icon="box" title="لا موديلات بعد" text="أضف الموديلات من صفحة الكتالوج أولاً." />
+        <EmptyState icon="box" title="لا موديلات بعد" text="أضف الموديلات من صفحة الموديلات أولاً." />
       ) : (
         <ul className="card divide-y divide-line overflow-hidden">
           {rows.map((r) => (

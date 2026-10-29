@@ -22,15 +22,16 @@ export function navFor(role: AppRole): NavConfig {
     const orders: NavItem = { href: "/admin/orders", label: t.nav.orders, icon: "list" };
     const newOrder: NavItem = { href: "/admin/orders/new", label: t.nav.newOrder, icon: "plus", exact: true };
     const products: NavItem = { href: "/admin/products", label: t.nav.products, icon: "box" };
+    const catalogs: NavItem = { href: "/admin/catalogs", label: t.nav.catalogs, icon: "grid" };
     const employees: NavItem = { href: "/admin/employees", label: t.nav.employees, icon: "users" };
     const settings: NavItem = { href: "/admin/settings", label: t.nav.settings, icon: "gear" };
     const audit: NavItem = { href: "/admin/audit", label: t.nav.audit, icon: "shield" };
     const finance: NavItem = { href: "/finance", label: t.nav.finance, icon: "wallet" };
     return {
-      side: [dashboard, orders, newOrder, finance, products, employees, notifications, settings],
+      side: [dashboard, orders, newOrder, finance, products, catalogs, employees, notifications, settings],
       bottom: [dashboard, orders, notifications],
       fab: newOrder,
-      more: [finance, products, employees, settings, audit],
+      more: [finance, products, catalogs, employees, settings, audit],
     };
   }
 

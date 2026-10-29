@@ -6,6 +6,7 @@ import { formatDate } from "@/lib/format";
 import { PrintButton } from "@/components/PrintButton";
 import { t } from "@/i18n";
 import type { FactoryOrder } from "@/lib/types";
+import { colorText } from "@/lib/color";
 
 export const metadata = { title: "ورقة المصنع" };
 
@@ -55,7 +56,7 @@ export default async function FactoryPrintPage({ params }: { params: Promise<{ i
                 )}
               </td>
               <td className="py-3 text-xl font-bold">{item.model}</td>
-              <td className="py-3">{item.color}</td>
+              <td className="py-3">{colorText(item)}</td>
               <td className="py-3 text-center text-3xl font-bold ltr-nums">{item.quantity}</td>
             </tr>
           ))}

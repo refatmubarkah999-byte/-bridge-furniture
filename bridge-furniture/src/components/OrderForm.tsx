@@ -7,12 +7,17 @@ import { formatILS, formatDate, modelsLabel, piecesLabel } from "@/lib/format";
 import { useFeedback } from "@/components/ui/Feedback";
 import { ProductThumb } from "@/components/ProductThumb";
 import { Icon, type IconName } from "@/components/Icon";
-import type { CatalogProduct, OrderDetail } from "@/lib/types";
+import type { CatalogProduct, FabricCatalog, OrderDetail } from "@/lib/types";
 
 type ItemState = {
   key: string;
   product_id: string;
   color: string;
+  /** كتالوج القماش المختار ثم رقم اللون منه */
+  catalog_id: string;
+  catalog_color_id: string;
+  /** منتج محفوظ بلون قديم (قبل الكتالوجات) — يبقى صالحاً ما لم يُغيَّر */
+  legacy: boolean;
   quantity: number;
   unit_price: string;
   notes: string;
@@ -37,11 +42,13 @@ function addDays(iso: string, n: number) {
 
 export function OrderForm({
   products,
+  catalogs = [],
   initial,
   basePath,
   minDate,
 }: {
   products: CatalogProduct[];
+  catalogs?: FabricCatalog[];
   initial?: OrderDetail;
   basePath: "/admin" | "/sales" | "/returns";
   minDate: string;
@@ -51,6 +58,17 @@ export function OrderForm({
   const isSubmittedEdit = !!initial && initial.status !== "draft";
   const byId = useMemo(() => new Map(products.map((p) => [p.id, p])), [products]);
   const activeProducts = products.filter((p) => p.is_active);
+  // الكتالوجات المتاحة للاختيار (فيها رقم لون فعّال واحد على الأقل)
+  const liveCatalogs = useMemo(
+    () => catalogs.filter((c) => c.is_active && c.colors.some((x) => x.is_active)),
+    [catalogs]
+  );
+  const useCatalogs = liveCatalogs.length > 0;
+  const catalogOfColor = useMemo(() => {
+    const m = new Map<string, string>();
+    for (const c of catalogs) for (const x of c.colors) m.set(x.id, c.id);
+    return m;
+  }, [catalogs]);
 
   // المرتجع: نفس النموذج، بلا عربون، ويصل للمالك فقط
   const isReturn = basePath === "/returns" || initial?.kind === "return";
@@ -75,6 +93,9 @@ export function OrderForm({
       key: newKey(),
       product_id: i.product_id ?? "",
       color: i.color,
+      catalog_color_id: i.catalog_color_id ?? "",
+      catalog_id: (i.catalog_color_id && catalogOfColor.get(i.catalog_color_id)) || "",
+      legacy: !i.catalog_color_id,
       quantity: i.quantity,
       unit_price: String(i.unit_price),
       notes: i.notes ?? "",
@@ -102,7 +123,10 @@ export function OrderForm({
       {
         key: newKey(),
         product_id: p.id,
-        color: p.colors.find((c) => c.is_active)?.name ?? "",
+        color: useCatalogs ? "" : p.colors.find((c) => c.is_active)?.name ?? "",
+        catalog_id: liveCatalogs.length === 1 ? liveCatalogs[0].id : "",
+        catalog_color_id: "",
+        legacy: false,
         quantity: 1,
         unit_price: String(p.standard_price),
         notes: "",
@@ -127,7 +151,10 @@ export function OrderForm({
     if (!deliveryDate) e.date = "اختر موعد التسليم.";
     else if (deliveryDate < minDate) e.date = "الموعد لا يمكن أن يكون في الماضي.";
     if (!items.length) e.items = "أضف منتجاً واحداً على الأقل.";
-    for (const it of items) if (!it.color) item[it.key] = "اختر اللون.";
+    for (const it of items) {
+      const ok = it.catalog_color_id || (it.color && (it.legacy || !useCatalogs));
+      if (!ok) item[it.key] = useCatalogs ? "اختر الكتالوج ورقم اللون." : "اختر اللون.";
+    }
     if (Object.keys(item).length) e.item = item;
     if (!isSubmittedEdit && paid > total) e.deposit = "العربون أكبر من مجموع الطلبية.";
     return e;
@@ -145,7 +172,8 @@ export function OrderForm({
       deposit: Number(deposit) || 0,
       items: items.map((i) => ({
         product_id: i.product_id,
-        color: i.color,
+        color: i.catalog_color_id ? "" : i.color,
+        catalog_color_id: i.catalog_color_id || undefined,
         quantity: i.quantity,
         unit_price: Number(i.unit_price) || 0,
         notes: i.notes,
@@ -319,7 +347,7 @@ export function OrderForm({
             <span className="flex h-12 w-12 items-center justify-center rounded-2xl bg-walnut-100 text-walnut-700">
               <Icon name="plus" className="h-6 w-6" strokeWidth={2.2} />
             </span>
-            <span className="text-lg font-bold">اختر أول منتج من الكتالوج</span>
+            <span className="text-lg font-bold">اختر أول موديل</span>
             <span className="text-sm text-muted">يمكنك إضافة عدة موديلات في نفس الطلبية</span>
           </button>
         )}
@@ -352,6 +380,18 @@ export function OrderForm({
                   </div>
                 </div>
 
+                {useCatalogs ? (
+                  <CatalogColorPicker
+                    catalogs={liveCatalogs}
+                    allCatalogs={catalogs}
+                    item={item}
+                    error={itemError}
+                    onChange={(patch) => {
+                      updateItem(item.key, patch);
+                      if (errors.item?.[item.key]) setErrors((e) => ({ ...e, item: { ...e.item, [item.key]: "" } }));
+                    }}
+                  />
+                ) : (
                 <div className="mt-3">
                   <span className="label">اللون</span>
                   <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="اللون">
@@ -375,6 +415,7 @@ export function OrderForm({
                   </div>
                   {itemError && <p className="error-text">{itemError}</p>}
                 </div>
+                )}
 
                 <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
                   <div>
@@ -570,6 +611,7 @@ export function OrderForm({
       {pickerOpen && (
         <ProductPicker
           products={activeProducts}
+          showColors={!useCatalogs}
           onPick={addProduct}
           onClose={() => setPickerOpen(false)}
         />
@@ -580,10 +622,12 @@ export function OrderForm({
 
 function ProductPicker({
   products,
+  showColors,
   onPick,
   onClose,
 }: {
   products: CatalogProduct[];
+  showColors: boolean;
   onPick: (p: CatalogProduct) => void;
   onClose: () => void;
 }) {
@@ -610,7 +654,7 @@ function ProductPicker({
         </div>
         <div className="overflow-y-auto p-4 pb-[max(16px,env(safe-area-inset-bottom))]">
           {list.length === 0 ? (
-            <p className="py-10 text-center text-muted">{products.length ? "لا يوجد موديل بهذا الاسم." : "لا توجد موديلات في الكتالوج بعد. اطلب من المالك إضافتها."}</p>
+            <p className="py-10 text-center text-muted">{products.length ? "لا يوجد موديل بهذا الاسم." : "لا توجد موديلات بعد. اطلب من المالك إضافتها."}</p>
           ) : (
             <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
               {list.map((p) => (
@@ -620,7 +664,7 @@ function ProductPicker({
                     <div className="px-1 pb-1 pt-2">
                       <div className="truncate font-bold">{p.name}</div>
                       <div className="text-sm text-muted ltr-nums">{formatILS(p.standard_price)}</div>
-                      <div className="mt-1 truncate text-xs text-faint">{p.colors.filter((c) => c.is_active).map((c) => c.name).join("، ")}</div>
+                      {showColors && <div className="mt-1 truncate text-xs text-faint">{p.colors.filter((c) => c.is_active).map((c) => c.name).join("، ")}</div>}
                     </div>
                   </button>
                 </li>
@@ -693,6 +737,100 @@ function Field({
         {hint && <span className="font-normal text-muted"> — {hint}</span>}
       </span>
       {children}
+      {error && <p className="error-text">{error}</p>}
+    </div>
+  );
+}
+
+/** اختيار الكتالوج ثم رقم اللون منه */
+function CatalogColorPicker({
+  catalogs,
+  allCatalogs,
+  item,
+  error,
+  onChange,
+}: {
+  catalogs: FabricCatalog[];
+  allCatalogs: FabricCatalog[];
+  item: ItemState;
+  error?: string;
+  onChange: (patch: Partial<ItemState>) => void;
+}) {
+  const [q, setQ] = useState("");
+  const current = allCatalogs.find((c) => c.id === item.catalog_id);
+  const choices = current
+    ? current.colors.filter((x) => x.is_active || x.id === item.catalog_color_id)
+    : [];
+  const shown = q.trim() ? choices.filter((x) => x.code.includes(q.trim()) || (x.name ?? "").includes(q.trim())) : choices;
+  const picked = choices.find((x) => x.id === item.catalog_color_id);
+
+  return (
+    <div className="mt-3 space-y-3" data-error={!!error}>
+      {item.legacy && !item.catalog_color_id && item.color && (
+        <p className="rounded-xl bg-canvas px-3 py-2 text-[13px] text-muted ring-1 ring-line">
+          اللون المحفوظ: <b className="text-ink">{item.color}</b>. اختر كتالوجاً ورقم لون إذا بدك تغيّره.
+        </p>
+      )}
+      <div>
+        <span className="label">الكتالوج</span>
+        <div className="flex flex-wrap gap-2" role="radiogroup" aria-label="الكتالوج">
+          {catalogs.map((c) => (
+            <button
+              key={c.id}
+              type="button"
+              role="radio"
+              aria-checked={item.catalog_id === c.id}
+              aria-pressed={item.catalog_id === c.id}
+              className="chip min-h-11"
+              onClick={() => {
+                setQ("");
+                onChange({ catalog_id: c.id, catalog_color_id: c.id === item.catalog_id ? item.catalog_color_id : "" });
+              }}
+            >
+              {item.catalog_id === c.id && <Icon name="check" className="h-4 w-4" strokeWidth={2.6} />}
+              {c.name}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {current && (
+        <div>
+          <span className="label flex items-center justify-between gap-2">
+            <span>رقم اللون {picked && <span className="font-normal text-muted">— المختار: <b className="text-ink ltr-nums">{picked.code}</b>{picked.name ? ` ${picked.name}` : ""}</span>}</span>
+          </span>
+          {choices.length > 12 && (
+            <input
+              value={q}
+              onChange={(e) => setQ(e.target.value.replace(/[٠-٩]/g, (d) => String("٠١٢٣٤٥٦٧٨٩".indexOf(d))))}
+              inputMode="numeric"
+              placeholder="ابحث برقم اللون"
+              className="field mb-2 h-11"
+            />
+          )}
+          <div className="grid grid-cols-[repeat(auto-fill,minmax(76px,1fr))] gap-2" role="radiogroup" aria-label="رقم اللون">
+            {shown.map((x) => {
+              const on = item.catalog_color_id === x.id;
+              return (
+                <button
+                  key={x.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => onChange({ catalog_color_id: x.id, color: x.name ?? "", legacy: false })}
+                  className={`flex min-h-14 flex-col items-center justify-center rounded-xl border px-1 py-1.5 text-center transition ${
+                    on ? "border-walnut-600 bg-walnut-600 text-white" : "border-line bg-surface hover:border-walnut-400"
+                  }`}
+                >
+                  <span className="text-[17px] font-bold leading-none ltr-nums">{x.code}</span>
+                  {x.name && <span className={`mt-1 truncate text-[11px] ${on ? "text-white/85" : "text-muted"}`}>{x.name}</span>}
+                </button>
+              );
+            })}
+          </div>
+          {shown.length === 0 && <p className="text-sm text-muted">لا يوجد رقم بهذا البحث.</p>}
+        </div>
+      )}
       {error && <p className="error-text">{error}</p>}
     </div>
   );

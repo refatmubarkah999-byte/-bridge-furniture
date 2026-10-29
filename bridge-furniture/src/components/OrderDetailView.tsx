@@ -8,6 +8,8 @@ import { PaymentStatusBadge } from "@/components/PaymentBits";
 import { ReviewPaymentButtons } from "@/components/ReviewPaymentButtons";
 import { ReturnBadge } from "@/components/ReturnBadge";
 import type { OrderDetail } from "@/lib/types";
+import { ColorSpec } from "@/components/ColorSpec";
+import { colorText } from "@/lib/color";
 
 /** تفاصيل الطلبية الكاملة — للمالك ولموظف المبيعات صاحبها فقط (البيانات من get_order_detail) */
 export function OrderDetailView({
@@ -87,13 +89,13 @@ export function OrderDetailView({
           <ul className="divide-y divide-line">
             {order.items.map((item) => (
               <li key={item.id} className="flex gap-3 py-3 first:pt-0 last:pb-0">
-                <ZoomImage url={item.image_path ? images[item.image_path] : null} alt={item.model} caption={`${item.model} — ${item.color}`} size="md" />
+                <ZoomImage url={item.image_path ? images[item.image_path] : null} alt={item.model} caption={`${item.model} — ${colorText(item)}`} size="md" />
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-baseline justify-between gap-x-3">
                     <div className="text-lg font-bold">{item.model}</div>
                     <div className="font-bold ltr-nums">{formatILS(item.line_total)}</div>
                   </div>
-                  <div className="text-[15px] text-ink/75">{item.color}</div>
+                  <div className="mt-1"><ColorSpec item={item} /></div>
                   <div className="mt-0.5 text-sm text-muted ltr-nums">{item.quantity} × {formatILS(item.unit_price)}</div>
                   {item.notes && (
                     <div className="mt-1.5 inline-flex items-start gap-1.5 rounded-lg bg-canvas px-2.5 py-1.5 text-[13px]">

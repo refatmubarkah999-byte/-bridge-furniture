@@ -5,6 +5,8 @@ import { ZoomImage } from "@/components/ZoomImage";
 import { Icon } from "@/components/Icon";
 import { formatDate, modelsLabel, piecesLabel } from "@/lib/format";
 import type { FactoryOrder } from "@/lib/types";
+import { ColorSpec } from "@/components/ColorSpec";
+import { colorText } from "@/lib/color";
 
 /** بطاقة طلبية المصنع: الحقول السبعة المسموحة فقط */
 export function FactoryOrderCard({
@@ -50,15 +52,12 @@ export function FactoryOrderCard({
             <ZoomImage
               url={item.image_path ? images[item.image_path] : null}
               alt={item.model}
-              caption={`${item.model} — ${item.color}`}
+              caption={`${item.model} — ${colorText(item)}`}
               size="md"
             />
             <div className="min-w-0 flex-1">
               <div className="truncate text-lg font-bold">{item.model}</div>
-              <div className="mt-0.5 inline-flex items-center gap-1.5 text-[15px] text-ink/75">
-                <span className="h-3 w-3 rounded-full bg-walnut-300 ring-1 ring-black/10" aria-hidden="true" />
-                {item.color}
-              </div>
+              <div className="mt-1"><ColorSpec item={item} /></div>
             </div>
             <div className="flex flex-col items-center rounded-xl bg-surface px-3 py-1.5 ring-1 ring-line">
               <span className="text-2xl font-bold leading-none tabular">{item.quantity}</span>

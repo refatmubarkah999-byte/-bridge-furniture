@@ -45,10 +45,13 @@ export async function currentProfileWithRole(...roles: AppRole[]): Promise<Profi
 
 export const getSettings = cache(async () => {
   const supabase = await createClient();
-  const { data } = await supabase.from("app_settings").select("company_name, timezone, order_prefix").maybeSingle();
+  // "*" حتى لا تتعطل الإعدادات إذا لم يُشغَّل ملف قاعدة البيانات الأحدث بعد
+  const { data } = await supabase.from("app_settings").select("*").maybeSingle();
   return {
     company_name: (data?.company_name as string) ?? "Bridge Furniture",
     timezone: (data?.timezone as string) ?? "Asia/Hebron",
     order_prefix: (data?.order_prefix as string) ?? "BR",
+    promo_url: (data?.promo_url as string | null | undefined) ?? null,
+    promo_text: (data?.promo_text as string | null | undefined) ?? null,
   };
 });

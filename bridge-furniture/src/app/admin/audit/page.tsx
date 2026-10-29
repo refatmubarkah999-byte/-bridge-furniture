@@ -30,6 +30,7 @@ const ACTIONS: Record<string, string> = {
   payment_confirmed: "تأكيد دفعة",
   payment_rejected: "رفض دفعة",
   cost_updated: "تعديل تكلفة موديل",
+  catalog_created: "إضافة كتالوج",
 };
 
 type Row = { id: number; action: string; entity: string; entity_id: string | null; details: Record<string, unknown>; created_at: string; actor: { full_name: string } | null };

@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { signImagePaths } from "@/lib/images";
-import type { CatalogProduct } from "@/lib/types";
+import type { CatalogProduct, FabricCatalog } from "@/lib/types";
 
 type Row = {
   id: string;
@@ -34,4 +34,20 @@ export async function loadCatalog(supabase: SupabaseClient): Promise<CatalogProd
       image_url: path ? urls[path] ?? null : null,
     };
   });
+}
+
+/** كتالوجات الأقمشة وأرقام ألوانها (المالك والمبيعات والمرتجعات بحسب RLS) */
+export async function loadFabricCatalogs(supabase: SupabaseClient): Promise<FabricCatalog[]> {
+  const { data } = await supabase
+    .from("fabric_catalogs")
+    .select("id, name, is_active, catalog_colors(id, code, name, is_active)")
+    .order("is_active", { ascending: false })
+    .order("name");
+  const byCode = (a: { code: string }, b: { code: string }) => a.code.localeCompare(b.code, "en", { numeric: true });
+  return ((data ?? []) as { id: string; name: string; is_active: boolean; catalog_colors: FabricCatalog["colors"] }[]).map((c) => ({
+    id: c.id,
+    name: c.name,
+    is_active: c.is_active,
+    colors: [...(c.catalog_colors ?? [])].sort(byCode),
+  }));
 }

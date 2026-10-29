@@ -32,12 +32,22 @@ export default async function SalesOrderPage({
         back={{ href: isDraft ? "/sales?tab=drafts" : "/sales", label: "طلبياتي" }}
         title={<span className="ltr-nums">{order.order_number ?? "مسودة"}</span>}
         actions={
-          !isDraft && order.can_edit ? (
-            <Link href={`/sales/orders/${order.id}/edit`} className="btn-secondary btn-sm">
-              <Icon name="edit" className="h-4 w-4" />
-              تعديل
-            </Link>
-          ) : undefined
+          isDraft ? undefined : (
+            <>
+              {order.status !== "cancelled" && (
+                <Link href={`/sales/orders/${order.id}/waybill`} className="btn-secondary btn-sm">
+                  <Icon name="truck" className="h-4 w-4" />
+                  بوليصة
+                </Link>
+              )}
+              {order.can_edit && (
+                <Link href={`/sales/orders/${order.id}/edit`} className="btn-secondary btn-sm">
+                  <Icon name="edit" className="h-4 w-4" />
+                  تعديل
+                </Link>
+              )}
+            </>
+          )
         }
       />
       <OrderDetailView

@@ -21,7 +21,7 @@ export default async function SettingsPage() {
         </span>
         <span className="min-w-0 flex-1">
           <span className="block font-bold">{t.nav.audit}</span>
-          <span className="block text-sm text-muted">من فعل ماذا ومتى: الإرسال، تغيير الحالات، الدفعات، الحسابات، الكتالوج.</span>
+          <span className="block text-sm text-muted">من فعل ماذا ومتى: الإرسال، تغيير الحالات، الدفعات، الحسابات، الموديلات والكتالوجات.</span>
         </span>
         <Icon name="chevronLeft" className="h-5 w-5 text-muted" />
       </Link>

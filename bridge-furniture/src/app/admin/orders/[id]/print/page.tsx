@@ -6,6 +6,7 @@ import { loadOrderDetail } from "@/lib/orders";
 import { formatDate, formatDateTime, formatILS } from "@/lib/format";
 import { PrintButton } from "@/components/PrintButton";
 import { t } from "@/i18n";
+import { colorText } from "@/lib/color";
 
 export const metadata = { title: "طباعة الطلبية" };
 
@@ -51,7 +52,7 @@ export default async function AdminPrintOrder({ params }: { params: Promise<{ id
             <tr key={i.id} className="border-b border-line align-middle">
               <td className="py-2">{i.image_path && images[i.image_path] ? <img src={images[i.image_path]} alt={i.model} className="h-14 w-14 rounded object-cover" /> : null}</td>
               <td className="font-semibold">{i.model}{i.notes ? <div className="text-xs font-normal text-muted">{i.notes}</div> : null}</td>
-              <td>{i.color}</td>
+              <td>{colorText(i)}</td>
               <td className="text-center ltr-nums">{i.quantity}</td>
               <td className="ltr-nums">{formatILS(i.unit_price)}</td>
               <td className="ltr-nums">{formatILS(i.line_total)}</td>

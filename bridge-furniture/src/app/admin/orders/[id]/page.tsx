@@ -40,6 +40,12 @@ export default async function AdminOrderPage({
                 تعديل
               </Link>
             )}
+            {!isDraft && order.status !== "cancelled" && (
+              <Link href={`/admin/orders/${order.id}/waybill`} className="btn-secondary btn-sm">
+                <Icon name="truck" className="h-4 w-4" />
+                بوليصة
+              </Link>
+            )}
             {!isDraft && (
               <Link href={`/admin/orders/${order.id}/print`} className="btn-secondary btn-sm">
                 <Icon name="print" className="h-4 w-4" />

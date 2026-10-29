@@ -40,6 +40,8 @@ export type FactoryItem = {
   position: number;
   model: string;
   color: string;
+  catalog?: string | null;
+  color_code?: string | null;
   quantity: number;
   image_path: string | null;
 };
@@ -92,6 +94,9 @@ export type OrderDetail = {
     product_id: string | null;
     model: string;
     color: string;
+    catalog?: string | null;
+    color_code?: string | null;
+    catalog_color_id?: string | null;
     quantity: number;
     image_path: string | null;
     unit_price: number;
@@ -130,3 +135,11 @@ export type CatalogProduct = {
 };
 
 export type ActionResult<T = undefined> = { ok: true; data?: T } | { ok: false; error: string };
+
+/** كتالوج قماش عام لكل المنتجات، وفيه أرقام ألوان */
+export type FabricCatalog = {
+  id: string;
+  name: string;
+  is_active: boolean;
+  colors: { id: string; code: string; name: string | null; is_active: boolean }[];
+};

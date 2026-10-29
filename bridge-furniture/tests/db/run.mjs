@@ -299,7 +299,7 @@ await test("factory_list_orders: الأعمدة والحقول المسموحة 
   assert(cols === "expected_delivery_date,is_delayed,items,order_id,order_number,status", `أعمدة: ${cols}`);
   for (const item of list[0].items) {
     const keys = Object.keys(item).sort().join(",");
-    assert(keys === "color,image_path,model,position,quantity", `حقول المنتج: ${keys}`);
+    assert(keys === "catalog,color,color_code,image_path,model,position,quantity", `حقول المنتج: ${keys}`);
   }
   assert(list[0].items[0].model === "Sila" && list[0].items[0].quantity === 3, "بيانات المنتج");
   assertNoSecrets(list, "نتيجة البوابة");
@@ -746,6 +746,79 @@ await test("طلبيات المبيعات الجديدة تبقى عادية و�
   assert((await rows(`select * from public.factory_get_order($1)`, [id])).length === 1, "المصنع يرى الطلبية العادية");
   await asPostgres();
   assert((await one(`select kind::text from public.orders where id = $1`, [id])).kind === "regular", "النوع");
+});
+
+console.log("\nكتالوجات الأقمشة وأرقام الألوان");
+
+let LINEN, C07, C12;
+await test("المالك ينشئ كتالوجاً وأرقام ألوان؛ المبيعات والمرتجعات يقرؤونها ولا يعدّلونها؛ المصنع لا يقرؤها", async () => {
+  await as(users.owner);
+  LINEN = (await one(`insert into public.fabric_catalogs(name) values ('لينن برو') returning id`)).id;
+  C07 = (await one(`insert into public.catalog_colors(catalog_id, code, name) values ($1, '07', 'بيج') returning id`, [LINEN])).id;
+  C12 = (await one(`insert into public.catalog_colors(catalog_id, code) values ($1, '12') returning id`, [LINEN])).id;
+  for (const u of [users.sales1, users.returns1]) {
+    await as(u);
+    assert((await one(`select count(*)::int as n from public.catalog_colors`)).n === 2, `قراءة ${u.role}`);
+    await expectError(() => db.exec(`insert into public.fabric_catalogs(name) values ('x')`), /row-level security|permission denied/);
+    const r = await db.query(`update public.catalog_colors set code = '99'`);
+    assert(r.affectedRows === 0, `تعديل ${u.role}`);
+  }
+  for (const u of [users.factory, users.disabled]) {
+    await as(u);
+    assert((await one(`select count(*)::int as n from public.fabric_catalogs`)).n === 0, `المصنع/الموقوف ${u.role}`);
+  }
+  await as(null);
+  await expectError(() => db.exec(`select * from public.catalog_colors`), /permission denied/);
+});
+
+let orderCat;
+await test("الطلبية تحفظ الكتالوج ورقم اللون واسمه، والمصنع يراها في بوابته", async () => {
+  await as(users.sales1);
+  const payload = draftPayload(randomUUID(), { deposit: 0, items: [
+    { product_id: SILA, catalog_color_id: C07, quantity: 2, unit_price: 4200 },
+    { product_id: NOLA, catalog_color_id: C12, quantity: 1, unit_price: 3600 },
+  ] });
+  orderCat = (await one(`select public.save_order_draft($1::jsonb) as id`, [JSON.stringify(payload)])).id;
+  await db.query(`select public.submit_order($1)`, [orderCat]);
+  const d = (await one(`select public.get_order_detail($1) as d`, [orderCat])).d;
+  assert(d.items[0].catalog === "لينن برو" && d.items[0].color_code === "07" && d.items[0].color === "بيج", JSON.stringify(d.items[0]));
+  assert(d.items[1].color_code === "12" && d.items[1].color === "" && d.items[1].catalog_color_id === C12, JSON.stringify(d.items[1]));
+  await as(users.factory);
+  const f = (await rows(`select * from public.factory_get_order($1)`, [orderCat]))[0];
+  assert(f.items[0].catalog === "لينن برو" && f.items[0].color_code === "07", JSON.stringify(f.items));
+});
+
+await test("تغيير الكتالوج لاحقاً لا يغيّر الطلبيات المحفوظة، واللون الموقوف أو غير الموجود مرفوض", async () => {
+  await as(users.owner);
+  await db.query(`update public.catalog_colors set name = 'بيج فاتح', is_active = false where id = $1`, [C07]);
+  await db.query(`update public.fabric_catalogs set name = 'لينن 2' where id = $1`, [LINEN]);
+  const d = (await one(`select public.get_order_detail($1) as d`, [orderCat])).d;
+  assert(d.items[0].catalog === "لينن برو" && d.items[0].color === "بيج", "النسخة المحفوظة تغيّرت");
+  await as(users.sales1);
+  const bad = (cc) => JSON.stringify(draftPayload(randomUUID(), { deposit: 0, items: [{ product_id: SILA, catalog_color_id: cc, quantity: 1 }] }));
+  await expectError(() => db.query(`select public.save_order_draft($1::jsonb)`, [bad(C07)]), /invalid_color/);
+  await expectError(() => db.query(`select public.save_order_draft($1::jsonb)`, [bad(randomUUID())]), /invalid_color/);
+  await expectError(() => db.query(`select public.save_order_draft($1::jsonb)`, [bad("not-a-uuid")]), /invalid_item/);
+  await as(users.owner);
+  await db.query(`delete from public.catalog_colors where id = $1`, [C12]);
+  const d2 = (await one(`select public.get_order_detail($1) as d`, [orderCat])).d;
+  assert(d2.items[1].color_code === "12" && d2.items[1].catalog_color_id === null, "حذف اللون من الكتالوج غيّر الطلبية");
+});
+
+console.log("\nرابط الدعاية على البوليصة");
+
+await test("المالك فقط يضبط رابط الدعاية، والرابط يجب أن يبدأ بـ https://", async () => {
+  await as(users.owner);
+  await db.query(`select public.update_promo('https://instagram.com/bridge.furniture', 'تابعونا على إنستغرام')`);
+  await expectError(() => db.query(`select public.update_promo('javascript:alert(1)', null)`), /invalid_url/);
+  const r = await one(`select promo_url, promo_text from public.app_settings`);
+  assert(r.promo_url === "https://instagram.com/bridge.furniture" && r.promo_text === "تابعونا على إنستغرام", JSON.stringify(r));
+  for (const u of [users.sales1, users.factory, users.accountant, users.returns1]) {
+    await as(u);
+    await expectError(() => db.query(`select public.update_promo('https://x.com', null)`), /forbidden/);
+  }
+  await as(null);
+  await expectError(() => db.query(`select public.update_promo('https://x.com', null)`), /permission denied/);
 });
 
 console.log(`\n${passed} نجح، ${failures.length} فشل`);

@@ -28,7 +28,8 @@ const OrderPayload = z.object({
     .array(
       z.object({
         product_id: z.string().uuid(),
-        color: z.string().max(40),
+        color: z.string().max(40).optional().default(""),
+        catalog_color_id: z.string().uuid().optional(),
         quantity: z.coerce.number().int(),
         unit_price: money,
         notes: z.string().max(500).optional().default(""),
