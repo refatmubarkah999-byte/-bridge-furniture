@@ -67,7 +67,7 @@ export function FinanceOverview({
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi icon="chart" label="المبيعات" value={formatILS(s.sales)} sub={`${s.orders} طلبية`} />
-        <Kpi icon="sparkle" label="الربح" value={formatILS(s.profit)} sub={`هامش ${margin}% · التكلفة ${formatILS(Number(s.cost) + Number(s.delivery_fees))}`} tone={s.profit < 0 ? "rose" : "emerald"} />
+        <Kpi icon="sparkle" label="الربح" value={formatILS(s.profit)} sub={`هامش ${margin}% · التكلفة ${formatILS(s.cost)}`} tone={s.profit < 0 ? "rose" : "emerald"} />
         <Kpi icon="wallet" label="المحصّل" value={formatILS(s.collected)} sub="دفعات مؤكدة في الفترة" />
         <Kpi
           icon="alert"
@@ -143,12 +143,19 @@ export function FinanceOverview({
               {Number(s.discounts ?? 0) !== 0 && <Line k={Number(s.discounts) > 0 ? "خصومات (أسعار متفق عليها)" : "زيادات (أسعار متفق عليها)"} v={-Number(s.discounts)} />}
               <div className="border-t border-line pt-2.5"><Line k="المبيعات" v={s.sales} strong /></div>
               <Line k="تكلفة المنتجات" v={-s.cost} />
-              <Line k="تكلفة التوصيل" v={-s.delivery_fees} />
               <div className="border-t border-line pt-2.5"><Line k="الربح الإجمالي" v={s.profit} strong /></div>
             </dl>
             <p className="mt-3 text-[12px] leading-relaxed text-muted">
-              الربح = المبيعات − تكلفة الموديلات − تكلفة التوصيل. لا يشمل مصاريف أخرى (إيجار، رواتب…). الطلبيات الملغية غير محسوبة.
+              الربح = المبيعات − تكلفة الموديلات. لا يشمل مصاريف أخرى (إيجار، رواتب…). الطلبيات الملغية غير محسوبة.
             </p>
+            {Number(s.delivery_fees) > 0 && (
+              <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-canvas p-2.5 text-[13px] text-ink/80">
+                <Icon name="truck" className="mt-0.5 h-4 w-4 shrink-0" />
+                <span>
+                  رسوم توصيل على الزبائن: <b className="ltr-nums">{formatILS(s.delivery_fees)}</b> — تروح لشركة التوصيل، غير داخلة في المبيعات والربح.
+                </span>
+              </p>
+            )}
             {s.returns && s.returns.count > 0 && (
               <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-violet-50 p-2.5 text-[13px] text-violet-900">
                 <Icon name="undo" className="mt-0.5 h-4 w-4 shrink-0" />
