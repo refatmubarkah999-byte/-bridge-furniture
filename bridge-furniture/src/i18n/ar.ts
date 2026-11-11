@@ -112,6 +112,8 @@ export const ar = {
     transition_not_allowed: "هذا الانتقال في الحالة غير مسموح.",
     no_change: "الطلبية في هذه الحالة أصلاً.",
     invalid_amount: "المبلغ غير صالح.",
+    invalid_expense_date: "تاريخ المصروف غير صالح.",
+    expense_not_found: "المصروف غير موجود (ربما انحذف).",
     invalid_method: "اختر طريقة الدفع.",
     invalid_url: "الرابط غير صالح — يجب أن يبدأ بـ https://",
     amount_exceeds_remaining: "المبلغ أكبر من المتبقي على الطلبية (مع الدفعات التي تنتظر التأكيد).",
