@@ -110,10 +110,13 @@ export function OrderForm({
   const formRef = useRef<HTMLFormElement>(null);
 
   const subtotal = items.reduce((s, i) => s + (Number(i.unit_price) || 0) * (i.quantity || 0), 0);
-  // المجموع على الزبون = السعر المتفق عليه إن كُتب، وإلا مجموع المنتجات. التوصيل علينا ولا يُضاف.
+  // قيمة المنتجات = السعر المتفق عليه إن كُتب، وإلا مجموع المنتجات.
+  // المجموع على الزبون = قيمة المنتجات + التوصيل (التوصيل يروح لشركة التوصيل، مش من المبيعات).
   const agreed = agreedTotal.trim() === "" ? null : Number(agreedTotal) || 0;
-  const total = agreed ?? subtotal;
-  const diff = Math.round((total - subtotal) * 100) / 100;
+  const productsTotal = agreed ?? subtotal;
+  const fee = Number(deliveryFee) || 0;
+  const total = productsTotal + fee;
+  const diff = Math.round((productsTotal - subtotal) * 100) / 100;
   const paid = isSubmittedEdit ? Number(initial?.totals.paid ?? 0) : Number(deposit) || 0;
   const remaining = total - paid;
   const pieces = items.reduce((s, i) => s + i.quantity, 0);
@@ -161,7 +164,7 @@ export function OrderForm({
     }
     if (Object.keys(item).length) e.item = item;
     if (!isSubmittedEdit && paid > total) e.deposit = "العربون أكبر من مجموع الطلبية.";
-    if (isSubmittedEdit && agreed != null && agreed < paid + Number(initial?.totals.pending ?? 0))
+    if (isSubmittedEdit && agreed != null && total < paid + Number(initial?.totals.pending ?? 0))
       e.agreed = "السعر المتفق عليه أقل من المدفوع على الطلبية.";
     return e;
   }
@@ -577,8 +580,8 @@ export function OrderForm({
             </div>
           </div>
           <Field
-            label={isReturn ? "تكلفة النقل علينا (₪)" : "تكلفة التوصيل علينا (₪)"}
-            hint={isReturn ? "إن دفعنا لشركة نقل — لا تُضاف على القيمة" : "ندفعها لشركة التوصيل — لا تُضاف على الزبون، وتُطرح من الربح"}
+            label={isReturn ? "رسوم (₪)" : "رسوم التوصيل (₪)"}
+            hint={isReturn ? "رسوم نقل أو معالجة إن وُجدت — اتركها فارغة إن لم توجد" : "يدفعها الزبون مع الطلبية وتروح لشركة التوصيل — لا تُحسب من المبيعات ولا الربح"}
           >
             <input className="field text-left ltr-nums" dir="ltr" inputMode="decimal" placeholder="0" value={deliveryFee} onChange={(e) => setDeliveryFee(cleanMoney(e.target.value))} />
           </Field>
