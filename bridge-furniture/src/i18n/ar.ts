@@ -87,7 +87,7 @@ export const ar = {
     not_found: "الطلبية غير موجودة أو ليست من صلاحياتك.",
     invalid_payload: "بيانات غير صالحة، أعد المحاولة.",
     too_many_items: "الحد الأقصى 50 منتجاً في الطلبية.",
-    invalid_delivery_fee: "تكلفة التوصيل غير صالحة.",
+    invalid_delivery_fee: "رسوم التوصيل غير صالحة.",
     invalid_deposit: "قيمة العربون غير صالحة.",
     text_too_long: "أحد النصوص أطول من المسموح.",
     order_locked: "لا يمكن تعديل طلبية بعد إرسالها دون صلاحية.",
