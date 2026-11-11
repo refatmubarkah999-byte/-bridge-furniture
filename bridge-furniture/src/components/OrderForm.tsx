@@ -23,7 +23,7 @@ type ItemState = {
   notes: string;
   showNotes: boolean;
 };
-type Errors = Partial<Record<"full_name" | "phone" | "phone2" | "city" | "address" | "date" | "items" | "deposit", string>> & {
+type Errors = Partial<Record<"full_name" | "phone" | "phone2" | "city" | "address" | "date" | "items" | "deposit" | "agreed", string>> & {
   item?: Record<string, string>;
 };
 
@@ -84,7 +84,8 @@ export function OrderForm({
     address: initial?.customer.address ?? "",
   });
   const [deliveryDate, setDeliveryDate] = useState(initial?.expected_delivery_date ?? "");
-  const [deliveryFee, setDeliveryFee] = useState(initial ? String(initial.totals.delivery_fee) : "");
+  const [deliveryFee, setDeliveryFee] = useState(initial && Number(initial.totals.delivery_fee) ? String(initial.totals.delivery_fee) : "");
+  const [agreedTotal, setAgreedTotal] = useState(initial?.totals.agreed_total != null ? String(initial.totals.agreed_total) : "");
   const [deposit, setDeposit] = useState(initial?.deposit ? String(initial.deposit) : "");
   const [customerNotes, setCustomerNotes] = useState(initial?.customer_notes ?? "");
   const [internalNotes, setInternalNotes] = useState(initial?.internal_notes ?? "");
@@ -109,7 +110,10 @@ export function OrderForm({
   const formRef = useRef<HTMLFormElement>(null);
 
   const subtotal = items.reduce((s, i) => s + (Number(i.unit_price) || 0) * (i.quantity || 0), 0);
-  const total = subtotal + (Number(deliveryFee) || 0);
+  // المجموع على الزبون = السعر المتفق عليه إن كُتب، وإلا مجموع المنتجات. التوصيل علينا ولا يُضاف.
+  const agreed = agreedTotal.trim() === "" ? null : Number(agreedTotal) || 0;
+  const total = agreed ?? subtotal;
+  const diff = Math.round((total - subtotal) * 100) / 100;
   const paid = isSubmittedEdit ? Number(initial?.totals.paid ?? 0) : Number(deposit) || 0;
   const remaining = total - paid;
   const pieces = items.reduce((s, i) => s + i.quantity, 0);
@@ -157,6 +161,8 @@ export function OrderForm({
     }
     if (Object.keys(item).length) e.item = item;
     if (!isSubmittedEdit && paid > total) e.deposit = "العربون أكبر من مجموع الطلبية.";
+    if (isSubmittedEdit && agreed != null && agreed < paid + Number(initial?.totals.pending ?? 0))
+      e.agreed = "السعر المتفق عليه أقل من المدفوع على الطلبية.";
     return e;
   }
 
@@ -169,6 +175,7 @@ export function OrderForm({
       customer_notes: customerNotes,
       internal_notes: internalNotes,
       delivery_fee: Number(deliveryFee) || 0,
+      agreed_total: agreed,
       deposit: Number(deposit) || 0,
       items: items.map((i) => ({
         product_id: i.product_id,
@@ -528,7 +535,51 @@ export function OrderForm({
           {deliveryDate && !errors.date && <p className="hint">{formatDate(deliveryDate)}</p>}
         </Field>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
-          <Field label={isReturn ? "رسوم (₪)" : "رسوم التوصيل (₪)"} hint={isReturn ? "رسوم نقل أو معالجة إن وُجدت — اتركها فارغة إن لم توجد" : "اتركها فارغة إذا التوصيل مجاني"}>
+<div className="sm:col-span-2 rounded-2xl bg-canvas p-3.5">
+            <div className="flex items-baseline justify-between text-[15px]">
+              <span className="text-ink/75">{isReturn ? "قيمة القطع (الكمية × السعر)" : "مجموع المنتجات (الكمية × سعر القطعة)"}</span>
+              <span className="font-semibold ltr-nums">{formatILS(subtotal)}</span>
+            </div>
+            <div className="mt-3">
+              <Field
+                label={isReturn ? "القيمة الإجمالية المتفق عليها (₪)" : "السعر الإجمالي المتفق عليه (₪)"}
+                error={errors.agreed}
+                hint={
+                  agreed == null
+                    ? "اختياري — اكتب المبلغ الكلي إذا اتفقت مع الزبون على سعر للطلبية كلها. فارغ = مجموع المنتجات."
+                    : diff < 0
+                      ? `خصم ${formatILS(-diff)} عن مجموع المنتجات`
+                      : diff > 0
+                        ? `زيادة ${formatILS(diff)} عن مجموع المنتجات`
+                        : "نفس مجموع المنتجات"
+                }
+              >
+                <div className="flex gap-2">
+                  <input
+                    className="field text-left ltr-nums"
+                    dir="ltr"
+                    inputMode="decimal"
+                    placeholder={String(subtotal)}
+                    value={agreedTotal}
+                    aria-invalid={!!errors.agreed}
+                    onChange={(e) => {
+                      setAgreedTotal(cleanMoney(e.target.value));
+                      clearError("agreed");
+                    }}
+                  />
+                  {agreed != null && (
+                    <button type="button" className="btn-ghost btn-sm shrink-0" onClick={() => setAgreedTotal("")}>
+                      إلغاء
+                    </button>
+                  )}
+                </div>
+              </Field>
+            </div>
+          </div>
+          <Field
+            label={isReturn ? "تكلفة النقل علينا (₪)" : "تكلفة التوصيل علينا (₪)"}
+            hint={isReturn ? "إن دفعنا لشركة نقل — لا تُضاف على القيمة" : "ندفعها لشركة التوصيل — لا تُضاف على الزبون، وتُطرح من الربح"}
+          >
             <input className="field text-left ltr-nums" dir="ltr" inputMode="decimal" placeholder="0" value={deliveryFee} onChange={(e) => setDeliveryFee(cleanMoney(e.target.value))} />
           </Field>
           {!isSubmittedEdit && !isReturn && (

@@ -139,17 +139,18 @@ export function OrderDetailView({
           <SectionCard title="قيمة المرتجع" icon="wallet">
             <dl className="space-y-2.5 text-[15px]">
               <Money k="مجموع المنتجات" v={order.totals.subtotal} />
-              <Money k="رسوم" v={order.totals.delivery_fee} />
+              <Adjustment order={order} />
               <div className="border-t border-line pt-2.5"><Money k="القيمة الكلية" v={order.totals.total} strong /></div>
             </dl>
+            <DeliveryCost v={order.totals.delivery_fee} label="تكلفة النقل علينا" />
             <p className="mt-3 text-[12px] text-muted">المرتجعات لا تُحسب ضمن المبيعات ولا يُسجَّل عليها متبقٍ على الزبون.</p>
           </SectionCard>
         ) : (
         <SectionCard title="الحساب" icon="wallet">
             <dl className="space-y-2.5 text-[15px]">
               <Money k="مجموع المنتجات" v={order.totals.subtotal} />
-              <Money k="رسوم التوصيل" v={order.totals.delivery_fee} />
-              <div className="border-t border-line pt-2.5"><Money k="المجموع الكلي" v={order.totals.total} strong /></div>
+              <Adjustment order={order} />
+              <div className="border-t border-line pt-2.5"><Money k={order.totals.agreed_total != null ? "المتفق عليه مع الزبون" : "المجموع على الزبون"} v={order.totals.total} strong /></div>
               <Money k="المدفوع (مؤكد)" v={order.totals.paid} />
               {order.totals.pending > 0 && (
                 <div className="flex items-center justify-between text-amber-800">
@@ -162,6 +163,7 @@ export function OrderDetailView({
               <span className="font-semibold">{order.totals.remaining > 0 ? "المتبقي على الزبون" : "مدفوعة بالكامل"}</span>
               <span className="text-lg font-bold ltr-nums">{formatILS(order.totals.remaining)}</span>
             </div>
+            <DeliveryCost v={order.totals.delivery_fee} label="تكلفة التوصيل علينا" />
             {order.payments.length > 0 && (
               <ul className="mt-4 space-y-2 border-t border-line pt-3 text-sm">
                 {order.payments.map((p) => (
@@ -207,7 +209,8 @@ function ProfitCard({ order }: { order: OrderDetail }) {
     <SectionCard title="الربح" icon="chart">
       <dl className="space-y-2.5 text-[15px]">
         <Money k="المجموع" v={order.totals.total} />
-        <Money k="تكلفة المنتجات" v={f.cost} />
+        <Money k="تكلفة المنتجات" v={-f.cost} />
+        {Number(f.delivery_cost ?? 0) > 0 && <Money k="تكلفة التوصيل" v={-Number(f.delivery_cost)} />}
       </dl>
       <div className={`mt-3 flex items-center justify-between rounded-xl px-3.5 py-3 ${f.profit >= 0 ? "bg-emerald-50 text-emerald-800" : "bg-rose-50 text-rose-800"}`}>
         <span className="font-semibold">الربح <span className="text-sm font-normal">({margin}%)</span></span>
@@ -265,11 +268,33 @@ function Meta({ k, v }: { k: string; v: React.ReactNode }) {
 }
 
 function Money({ k, v, strong }: { k: string; v: number; strong?: boolean }) {
+  const n = Number(v);
   return (
     <div className={`flex justify-between ${strong ? "text-lg font-bold" : ""}`}>
       <dt className={strong ? "" : "text-ink/75"}>{k}</dt>
-      <dd className="ltr-nums">{formatILS(v)}</dd>
+      <dd className="ltr-nums">{n < 0 ? `− ${formatILS(-n)}` : formatILS(n)}</dd>
     </div>
+  );
+}
+
+/** الفرق بين السعر المتفق عليه ومجموع المنتجات (خصم أو زيادة) */
+function Adjustment({ order }: { order: OrderDetail }) {
+  const d = Number(order.totals.discount ?? 0);
+  if (order.totals.agreed_total == null || d === 0) return null;
+  return <Money k={d > 0 ? "خصم (سعر متفق عليه)" : "زيادة (سعر متفق عليه)"} v={-d} />;
+}
+
+/** تكلفة التوصيل: مصروف على الشركة، لا تدخل في حساب الزبون */
+function DeliveryCost({ v, label }: { v: number; label: string }) {
+  if (!(Number(v) > 0)) return null;
+  return (
+    <p className="mt-3 flex items-center justify-between gap-2 rounded-xl bg-canvas px-3.5 py-2.5 text-[13px] text-muted">
+      <span className="flex items-center gap-1.5">
+        <Icon name="truck" className="h-4 w-4 shrink-0" />
+        {label} <span className="text-[12px]">— لا تُضاف على الزبون</span>
+      </span>
+      <span className="font-semibold ltr-nums text-ink/80">{formatILS(v)}</span>
+    </p>
   );
 }
 
