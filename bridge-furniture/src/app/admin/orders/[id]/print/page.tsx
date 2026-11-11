@@ -65,7 +65,9 @@ export default async function AdminPrintOrder({ params }: { params: Promise<{ id
         {order.totals.agreed_total != null && Number(order.totals.discount) !== 0 && (
           <Line k={Number(order.totals.discount) > 0 ? "خصم" : "زيادة"} v={-Number(order.totals.discount)} />
         )}
-        <Line k={order.totals.agreed_total != null ? "المتفق عليه" : "المجموع الكلي"} v={order.totals.total} bold />
+        {order.totals.agreed_total != null && <Line k="قيمة المنتجات المتفق عليها" v={order.totals.products_total} />}
+        <Line k="رسوم التوصيل" v={order.totals.delivery_fee} />
+        <Line k="المجموع الكلي" v={order.totals.total} bold />
         <Line k="المدفوع" v={order.totals.paid} />
         <Line k="المتبقي" v={order.totals.remaining} bold />
       </div>
