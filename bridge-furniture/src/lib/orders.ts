@@ -15,6 +15,7 @@ export async function loadOrderDetail(supabase: SupabaseClient, id: string) {
     delivery_fee: Number(order.totals.delivery_fee),
     agreed_total: order.totals.agreed_total == null ? null : Number(order.totals.agreed_total),
     discount: Number(order.totals.discount ?? 0),
+    products_total: Number(order.totals.products_total ?? Number(order.totals.total) - Number(order.totals.delivery_fee)),
     total: Number(order.totals.total),
     paid: Number(order.totals.paid),
     remaining: Number(order.totals.remaining),
@@ -24,7 +25,6 @@ export async function loadOrderDetail(supabase: SupabaseClient, id: string) {
   if (order.finance) {
     order.finance = {
       cost: Number(order.finance.cost),
-      delivery_cost: Number(order.finance.delivery_cost ?? 0),
       profit: Number(order.finance.profit),
       items_missing_cost: Number(order.finance.items_missing_cost),
     };
