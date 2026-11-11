@@ -62,8 +62,10 @@ export default async function AdminPrintOrder({ params }: { params: Promise<{ id
       </table>
       <div className="mr-auto w-64 space-y-1">
         <Line k="مجموع المنتجات" v={order.totals.subtotal} />
-        <Line k="رسوم التوصيل" v={order.totals.delivery_fee} />
-        <Line k="المجموع الكلي" v={order.totals.total} bold />
+        {order.totals.agreed_total != null && Number(order.totals.discount) !== 0 && (
+          <Line k={Number(order.totals.discount) > 0 ? "خصم" : "زيادة"} v={-Number(order.totals.discount)} />
+        )}
+        <Line k={order.totals.agreed_total != null ? "المتفق عليه" : "المجموع الكلي"} v={order.totals.total} bold />
         <Line k="المدفوع" v={order.totals.paid} />
         <Line k="المتبقي" v={order.totals.remaining} bold />
       </div>
@@ -78,9 +80,10 @@ export default async function AdminPrintOrder({ params }: { params: Promise<{ id
 }
 
 function Line({ k, v, bold }: { k: string; v: number; bold?: boolean }) {
+  const n = Number(v);
   return (
     <div className={`flex justify-between ${bold ? "font-bold" : ""}`}>
-      <span>{k}</span><span className="ltr-nums">{formatILS(v)}</span>
+      <span>{k}</span><span className="ltr-nums">{n < 0 ? `− ${formatILS(-n)}` : formatILS(n)}</span>
     </div>
   );
 }
