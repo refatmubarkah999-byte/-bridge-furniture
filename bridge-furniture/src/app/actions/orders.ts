@@ -23,6 +23,7 @@ const OrderPayload = z.object({
   customer_notes: z.string().max(1000).optional().default(""),
   internal_notes: z.string().max(1000).optional().default(""),
   delivery_fee: money.default(0),
+  agreed_total: money.nullable().optional(),
   deposit: money.default(0),
   items: z
     .array(
