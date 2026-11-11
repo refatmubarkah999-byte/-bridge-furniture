@@ -6,6 +6,7 @@ import { MonthlyChart, type MonthRow } from "@/components/finance/MonthlyChart";
 import { formatDate, formatILS } from "@/lib/format";
 import { t } from "@/i18n";
 import type { PaymentMethod } from "@/lib/types";
+import { EXPENSE_CATEGORIES, type ExpensesSummary } from "@/lib/expenses";
 
 export type FinanceSummary = {
   orders: number;
@@ -31,15 +32,19 @@ const pct = (a: number, b: number) => (b > 0 ? Math.round((a / b) * 100) : 0);
 
 export function FinanceOverview({
   s,
+  expenses,
   period,
   range,
 }: {
   s: FinanceSummary;
+  expenses: ExpensesSummary | null;
   period: string;
   range: { from?: string; to?: string };
 }) {
   const periodLabel = period === "custom" ? `${formatDate(range.from)} — ${formatDate(range.to)}` : FINANCE_PERIODS.find((p) => p.key === period)?.label ?? "";
   const margin = pct(s.profit, s.sales);
+  const spent = Number(expenses?.total ?? 0);
+  const net = Number(s.profit) - spent;
   const methods = (Object.keys(t.paymentMethod) as PaymentMethod[]).filter((m) => Number(s.collected_by_method[m] ?? 0) > 0);
 
   return (
@@ -67,7 +72,14 @@ export function FinanceOverview({
 
       <div className="mb-4 grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Kpi icon="chart" label="المبيعات" value={formatILS(s.sales)} sub={`${s.orders} طلبية`} />
-        <Kpi icon="sparkle" label="الربح" value={formatILS(s.profit)} sub={`هامش ${margin}% · التكلفة ${formatILS(s.cost)}`} tone={s.profit < 0 ? "rose" : "emerald"} />
+        <Kpi
+          icon="sparkle"
+          label="صافي الربح"
+          value={formatILS(net)}
+          sub={spent > 0 ? `ربح البضاعة ${formatILS(s.profit)} − مصاريف ${formatILS(spent)}` : `هامش ${margin}% · التكلفة ${formatILS(s.cost)}`}
+          tone={net < 0 ? "rose" : "emerald"}
+          href="/finance/expenses"
+        />
         <Kpi icon="wallet" label="المحصّل" value={formatILS(s.collected)} sub="دفعات مؤكدة في الفترة" />
         <Kpi
           icon="alert"
@@ -143,10 +155,18 @@ export function FinanceOverview({
               {Number(s.discounts ?? 0) !== 0 && <Line k={Number(s.discounts) > 0 ? "خصومات (أسعار متفق عليها)" : "زيادات (أسعار متفق عليها)"} v={-Number(s.discounts)} />}
               <div className="border-t border-line pt-2.5"><Line k="المبيعات" v={s.sales} strong /></div>
               <Line k="تكلفة المنتجات" v={-s.cost} />
-              <div className="border-t border-line pt-2.5"><Line k="الربح الإجمالي" v={s.profit} strong /></div>
+              <div className="border-t border-line pt-2.5"><Line k="ربح البضاعة" v={s.profit} strong /></div>
+              {EXPENSE_CATEGORIES.filter((c) => Number(expenses?.by_category[c.key] ?? 0) > 0).map((c) => (
+                <Line key={c.key} k={c.label} v={-Number(expenses!.by_category[c.key])} />
+              ))}
+              <div className="border-t border-line pt-2.5"><Line k="صافي الربح" v={net} strong /></div>
             </dl>
+            <Link href="/finance/expenses" className="mt-3 inline-flex items-center gap-1 text-[13px] font-semibold text-walnut-700 hover:underline">
+              <Icon name="plus" className="h-4 w-4" />
+              {spent > 0 ? "المصاريف بالتفصيل" : "سجّل المصاريف (إعلانات، رواتب، تسويق)"}
+            </Link>
             <p className="mt-3 text-[12px] leading-relaxed text-muted">
-              الربح = المبيعات − تكلفة الموديلات. لا يشمل مصاريف أخرى (إيجار، رواتب…). الطلبيات الملغية غير محسوبة.
+              ربح البضاعة = المبيعات − تكلفة الموديلات. صافي الربح = ربح البضاعة − المصاريف المسجّلة. الطلبيات الملغية غير محسوبة.
             </p>
             {Number(s.delivery_fees) > 0 && (
               <p className="mt-3 flex items-start gap-1.5 rounded-xl bg-canvas p-2.5 text-[13px] text-ink/80">

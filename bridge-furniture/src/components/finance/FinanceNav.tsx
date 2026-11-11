@@ -5,6 +5,7 @@ const TABS: { key: string; href: string; label: string; icon: IconName }[] = [
   { key: "overview", href: "/finance", label: "التقرير", icon: "chart" },
   { key: "payments", href: "/finance/payments", label: "الدفعات", icon: "wallet" },
   { key: "orders", href: "/finance/orders", label: "أرباح الطلبيات", icon: "list" },
+  { key: "expenses", href: "/finance/expenses", label: "المصاريف", icon: "minus" },
   { key: "costs", href: "/finance/costs", label: "التكاليف", icon: "box" },
 ];
 
