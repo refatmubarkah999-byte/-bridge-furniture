@@ -3,6 +3,7 @@ import { getSettings } from "@/lib/auth";
 import { periodRange } from "@/lib/format";
 import { friendlyError } from "@/lib/errors";
 import { FinanceOverview, type FinanceSummary } from "@/components/finance/FinanceOverview";
+import type { ExpensesSummary } from "@/lib/expenses";
 
 export const metadata = { title: "المالية" };
 
@@ -16,7 +17,8 @@ export default async function FinancePage({
   const period = sp.period ?? (sp.from || sp.to ? "custom" : "month");
   const range = periodRange(period, settings.timezone, sp.from, sp.to);
   const supabase = await createClient();
-  const { data, error } = await supabase.rpc("finance_summary", { p_from: range.from ?? null, p_to: range.to ?? null });
+  const args = { p_from: range.from ?? null, p_to: range.to ?? null };
+  const [{ data, error }, exp] = await Promise.all([supabase.rpc("finance_summary", args), supabase.rpc("finance_expenses", args)]);
   if (error || !data) {
     return (
       <div className="page">
@@ -24,5 +26,5 @@ export default async function FinancePage({
       </div>
     );
   }
-  return <FinanceOverview s={data as FinanceSummary} period={period} range={range} />;
+  return <FinanceOverview s={data as FinanceSummary} expenses={(exp.data as ExpensesSummary | null) ?? null} period={period} range={range} />;
 }
