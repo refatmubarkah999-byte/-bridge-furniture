@@ -106,7 +106,16 @@ export type OrderDetail = {
     notes: string | null;
     line_total: number;
   }[];
-  totals: { subtotal: number; delivery_fee: number; total: number; paid: number; remaining: number; pending: number };
+  totals: {
+    subtotal: number;
+    delivery_fee: number;
+    agreed_total: number | null;
+    discount: number;
+    total: number;
+    paid: number;
+    remaining: number;
+    pending: number;
+  };
   deposit: number;
   payments: {
     id: string;
@@ -124,7 +133,7 @@ export type OrderDetail = {
   can_edit: boolean;
   can_record_payment: boolean;
   /** للمالك والمحاسب فقط — null لموظف المبيعات */
-  finance: { cost: number; profit: number; items_missing_cost: number } | null;
+  finance: { cost: number; delivery_cost?: number; profit: number; items_missing_cost: number } | null;
 };
 
 export type CatalogProduct = {
